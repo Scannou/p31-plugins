@@ -200,11 +200,27 @@ static NSColor *colorFromARGB(uint32_t argb) {
 // axis a thinner one. Which screen edge holds which depends on orientation.
 static const CGFloat kDbThick = 40.0;    // along the magnitude axis
 static const CGFloat kFreqThick = 20.0;  // along the frequency axis
-// Room past the loud end of the plot, so its dB label is not cut off.
-static const CGFloat kTopInset = 8.0;
-// Empty border on every side: the plot and its labels keep clear of the
-// window edges. The background still fills the whole view.
-static const CGFloat kOuterMargin = 10.0;
+// Empty border on each side of the view (the background still fills it).
+// The plot runs to the left and top edges; the labels on the right and the
+// bottom keep clear of the window edge.
+static const CGFloat kMarginLeft = 0.0;
+static const CGFloat kMarginTop = 0.0;
+static const CGFloat kMarginRight = 4.0;
+static const CGFloat kMarginBottom = 10.0;
+
+static NSFont *dbLabelFont() {
+    return [NSFont monospacedDigitSystemFontOfSize:kLabelFontSize weight:NSFontWeightRegular];
+}
+
+// Room past the loud end of the plot: the dB label there is centred on its
+// line, so half a label must fit beyond it or the label is cut off.
+static CGFloat loudEndInset() {
+    static const CGFloat inset = [] {
+        const NSSize sz = [@"0 dB" sizeWithAttributes:@{NSFontAttributeName: dbLabelFont()}];
+        return std::ceil(sz.height / 2.0) + 1.0;
+    }();
+    return inset;
+}
 static const CGFloat kLabelFontSize = 10.0;
 // Minor gridlines (between the decades) at this fraction of the grid opacity.
 static const CGFloat kMinorGridAlpha = 0.45;
@@ -213,11 +229,12 @@ static const CGFloat kMinorGridAlpha = 0.45;
 // (the frequency-label margin runs across the other axis), so it is known
 // before bar labels are laid out.
 - (CGFloat)freqAxisLengthForSize:(NSSize)size drawDb:(BOOL *)drawDb drawFreq:(BOOL *)drawFreq {
-    const CGFloat W = size.width - 2 * kOuterMargin, H = size.height - 2 * kOuterMargin;
+    const CGFloat W = size.width - kMarginLeft - kMarginRight;
+    const CGFloat H = size.height - kMarginTop - kMarginBottom;
     if (_vertical) {
         *drawDb   = _showDbGuides && (H > 50.0);   // dB labels along the bottom
         *drawFreq = _showFreqAxis && (W > 80.0);   // freq labels along the right
-        return H - (*drawDb ? kFreqThick : 0.0) - kTopInset;
+        return H - (*drawDb ? kFreqThick : 0.0) - loudEndInset();
     }
     *drawDb   = _showDbGuides && (W > 80.0);       // dB labels along the right
     *drawFreq = _showFreqAxis && (H > 50.0);       // freq labels along the bottom
@@ -238,8 +255,8 @@ static const CGFloat kMinorGridAlpha = 0.45;
     CGContextRef ctx = [[NSGraphicsContext currentContext] CGContext];
     const CGRect bounds = self.bounds;
     // The layout below works inside the outer margin.
-    const CGFloat W = bounds.size.width - 2 * kOuterMargin;
-    const CGFloat H = bounds.size.height - 2 * kOuterMargin;
+    const CGFloat W = bounds.size.width - kMarginLeft - kMarginRight;
+    const CGFloat H = bounds.size.height - kMarginTop - kMarginBottom;
 
     CGContextSetFillColorWithColor(ctx, [self bgColor].CGColor);
     CGContextFillRect(ctx, bounds);
@@ -252,7 +269,7 @@ static const CGFloat kMinorGridAlpha = 0.45;
     const CGFloat freqLen = [self freqAxisLengthForSize:bounds.size
                                                  drawDb:&drawDb
                                                drawFreq:&drawFreq];
-    if (_vertical) bottomMargin = H - kTopInset - freqLen;
+    if (_vertical) bottomMargin = H - loudEndInset() - freqLen;
     else           rightMargin  = W - freqLen;
 
     // The frequency-label margin does not change the plot's length along the
@@ -269,13 +286,13 @@ static const CGFloat kMinorGridAlpha = 0.45;
     }
 
     // The loud end of the magnitude axis (top, or right when vertical) keeps
-    // kTopInset free; so does the top of a vertical frequency axis.
-    const CGFloat plotW = W - rightMargin - (_vertical ? kTopInset : 0.0);
-    const CGFloat plotH = H - bottomMargin - kTopInset;
+    // loudEndInset() free; so does the top of a vertical frequency axis.
+    const CGFloat plotW = W - rightMargin - (_vertical ? loudEndInset() : 0.0);
+    const CGFloat plotH = H - bottomMargin - loudEndInset();
     if (plotW <= 1.0 || plotH <= 1.0) return;
 
-    _pOx = kOuterMargin;
-    _pOy = kOuterMargin + bottomMargin;
+    _pOx = kMarginLeft;
+    _pOy = kMarginBottom + bottomMargin;
     _pFreq = _vertical ? plotH : plotW;
     _pMag  = _vertical ? plotW : plotH;
 
@@ -579,7 +596,7 @@ static CGFloat colorBarStrength(CGFloat level) {
 
     const int step = range > 90 ? 20 : 10;
     NSDictionary *attrs = @{
-        NSFontAttributeName: [NSFont monospacedDigitSystemFontOfSize:kLabelFontSize weight:NSFontWeightRegular],
+        NSFontAttributeName: dbLabelFont(),
         NSForegroundColorAttributeName: [self gridLabelColor]
     };
     CGContextSetLineWidth(ctx, 1.0);
@@ -599,7 +616,7 @@ static CGFloat colorBarStrength(CGFloat level) {
             CGContextMoveToPoint(ctx, x, _pOy);
             CGContextAddLineToPoint(ctx, x, _pOy + _pFreq);
             CGContextStrokePath(ctx);
-            [label drawAtPoint:NSMakePoint(x - sz.width / 2, kOuterMargin + (_pOy - kOuterMargin - sz.height) / 2)
+            [label drawAtPoint:NSMakePoint(x - sz.width / 2, kMarginBottom + (_pOy - kMarginBottom - sz.height) / 2)
                 withAttributes:attrs];
         } else {
             CGFloat y = std::round(_pOy + v * _pMag) + 0.5;
@@ -659,7 +676,7 @@ static CGFloat colorBarStrength(CGFloat level) {
     };
     auto draw = [&](const Placed &p) {
         NSPoint at = _vertical ? NSMakePoint(_pOx + _pMag + 5, _pOy + p.start)
-                               : NSMakePoint(_pOx + p.start, kOuterMargin + (_pOy - kOuterMargin - p.size.height) / 2 + 1);
+                               : NSMakePoint(_pOx + p.start, kMarginBottom + (_pOy - kMarginBottom - p.size.height) / 2 + 1);
         [p.label drawAtPoint:at withAttributes:attrs];
     };
 
