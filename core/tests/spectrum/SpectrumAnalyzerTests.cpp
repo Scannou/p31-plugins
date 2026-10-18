@@ -286,13 +286,15 @@ TEST_CASE("sanitized pulls stored values back into range") {
     CHECK(t.theme == 3);
 }
 
-TEST_CASE("Default colors are the P31 phosphor theme, listed first") {
+TEST_CASE("Default colors are the P7 phosphor theme, phosphors listed first") {
     const SpectrumSettings s;
     REQUIRE(s.theme > 0);
-    CHECK(std::string(kThemes[s.theme].name) == "P31 green");
+    CHECK(std::string(kThemes[s.theme].name) == "P7 blue");
     CHECK(s.dark.bar == kThemes[s.theme].dark.bar);
     CHECK(s.light.background == kThemes[s.theme].light.background);
-    CHECK(kThemeMenuOrder[1] == s.theme);
+    // After "Custom" come the four phosphors, the default among them.
+    for (int i = 1; i <= 4; ++i) CHECK(std::string(kThemes[kThemeMenuOrder[i]].name).rfind("P", 0) == 0);
+    CHECK(std::find(kThemeMenuOrder + 1, kThemeMenuOrder + 5, s.theme) != kThemeMenuOrder + 5);
     std::vector<int> order(std::begin(kThemeMenuOrder), std::end(kThemeMenuOrder));
     std::sort(order.begin(), order.end());
     for (int i = 0; i < kThemeCount; ++i) CHECK(order[static_cast<size_t>(i)] == i);   // every theme once

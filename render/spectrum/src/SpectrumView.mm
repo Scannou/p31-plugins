@@ -254,7 +254,10 @@ static CGFloat loudEndInset() {
     return inset;
 }
 
-// Minor gridlines (between the decades) at this fraction of the grid opacity.
+// Frequency gridlines at these fractions of the grid opacity: the decades
+// (100 Hz, 1 kHz, 10 kHz) stand out without glaring, the lines between them
+// recede further. dB lines take the full opacity.
+static const CGFloat kDecadeGridAlpha = 0.7;
 static const CGFloat kMinorGridAlpha = 0.45;
 
 // Curve mode: the live curve is the strong line; peak hold a thin, faded one
@@ -715,8 +718,9 @@ static CGFloat colorBarStrength(CGFloat level) {
         NSForegroundColorAttributeName: [self decadeLabelColor]
     };
     CGContextSetLineWidth(ctx, 1.0);
-    NSColor *major = [self gridLineColor];
-    NSColor *minor = [major colorWithAlphaComponent:major.alphaComponent * kMinorGridAlpha];
+    NSColor *full = [self gridLineColor];
+    NSColor *major = [full colorWithAlphaComponent:full.alphaComponent * kDecadeGridAlpha];
+    NSColor *minor = [full colorWithAlphaComponent:full.alphaComponent * kMinorGridAlpha];
 
     const std::vector<double> ticks = [self freqAxisTicks];
     if (ticks.empty()) return;

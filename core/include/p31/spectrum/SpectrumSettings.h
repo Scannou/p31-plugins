@@ -110,11 +110,11 @@ struct SpectrumSettings {
     // Appearance
     bool showDbGuides = true;
     bool showFreqAxis = true;
-    int  gridOpacity = 11;         // 0-100: decade lines; the ones between at 45 % of it
+    int  gridOpacity = 60;         // 0-100
     int  appearance = AppearanceAuto;
-    int  theme = 11;               // index into kThemes (P31 green); 0 = custom colors
-    SpectrumColors light{0xFF1B8A3A, 0xFFF1F5F2, 0xFF5F7A66};
-    SpectrumColors dark{0xFF4CFF7C, 0xFF0C120E, 0xFFB8E6C4};
+    int  theme = 14;               // index into kThemes (P7 blue); 0 = custom colors
+    SpectrumColors light{0xFF2D6CC0, 0xFFF0F4F9, 0xFF64748A};
+    SpectrumColors dark{0xFF6FB7FF, 0xFF0A0E15, 0xFFC4D6EC};
 
     // A copy with every value inside the range the controls offer (state
     // loaded from disk is untrusted).
