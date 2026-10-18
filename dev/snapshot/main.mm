@@ -14,7 +14,9 @@
 //  would. P31_DUMP_STATE=1 prints the saved state's text at the end.
 //  P31_DRAG=dx,dy drags the editor's resize grip by that many points (right,
 //  down); the host side resizes the window like a DAW does. P31_ABOUT=1 opens
-//  the About dialog and saves that instead of the editor.
+//  the About dialog and saves that instead of the editor. P31_HOVER=x,y puts
+//  the mouse over the editor at that fraction of its width and height (0,0 is
+//  bottom left), for hover readouts.
 //  signals: mix (default), mono, left, wide, antiphase, silence,
 //           sine (1 kHz at -6 dBFS), tones (100 Hz / 1 kHz / 10 kHz at -12 dBFS),
 //           white (white noise at -20 dBFS RMS),
@@ -342,6 +344,27 @@ int main(int argc, const char* argv[]) {
             NSView* root = findResponder(window.contentView, @selector(showAbout));
             if (!root) { std::fprintf(stderr, "no About\n"); return 1; }
             [root performSelector:@selector(showAbout)];
+        }
+        if (const char* hover = std::getenv("P31_HOVER")) {
+            double fx = 0, fy = 0;
+            NSView* target = findViewOfClass(window.contentView, @"P31SpectrumView");
+            if (!target) target = findViewOfClass(window.contentView, @"P31ScopeView");
+            if (std::sscanf(hover, "%lf,%lf", &fx, &fy) != 2 || !target) {
+                std::fprintf(stderr, "hover failed\n");
+                return 1;
+            }
+            const NSPoint local = NSMakePoint(target.bounds.size.width * fx, target.bounds.size.height * fy);
+            NSEvent* move = [NSEvent mouseEventWithType:NSEventTypeMouseMoved
+                                               location:[target convertPoint:local toView:nil]
+                                          modifierFlags:0
+                                              timestamp:NSProcessInfo.processInfo.systemUptime
+                                           windowNumber:window.windowNumber
+                                                context:nil
+                                            eventNumber:0
+                                             clickCount:0
+                                               pressure:0];
+            // Keep the readout where it is while the audio plays.
+            [target mouseMoved:move];
         }
         [[NSRunLoop mainRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:seconds]];
         bool ok = false;
