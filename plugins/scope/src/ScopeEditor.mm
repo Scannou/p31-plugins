@@ -54,10 +54,11 @@ std::vector<std::pair<std::string, ScopeSettings>> factoryPresets() {
     lissajous.style = ScopeStyleLissajous;
     out.emplace_back("Lissajous", lissajous);
 
-    ScopeSettings bands;
-    bands.traceColorMode = TraceColorBands;
-    bands.correlationMode = CorrelationBands;
-    out.emplace_back("Three bands", bands);
+    // The default splits trace and meter into bands; this is the plain look.
+    ScopeSettings single;
+    single.traceColorMode = TraceColorSingle;
+    single.correlationMode = CorrelationSingle;
+    out.emplace_back("Single colour", single);
 
     ScopeSettings dots;
     dots.drawMode = DrawModeDots;

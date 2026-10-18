@@ -63,8 +63,8 @@ std::unique_ptr<p31::Editor> ScopePlugin::createEditor(uint32_t width, uint32_t 
 
 p31::EditorSizeLimits ScopePlugin::editorSizeLimits() const {
     p31::EditorSizeLimits limits;
-    limits.defaultWidth = 420;
-    limits.defaultHeight = 460;
+    limits.defaultWidth = 520;
+    limits.defaultHeight = 415;
     return limits;
 }
 
