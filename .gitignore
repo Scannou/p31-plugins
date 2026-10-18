@@ -30,3 +30,4 @@ DerivedData/
 .env
 # Downloaded dev tools (scripts/bootstrap.sh)
 tools/
+dist/
