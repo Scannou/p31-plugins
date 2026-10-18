@@ -2,6 +2,8 @@ add_executable(p31-core-tests
     main.cpp
     AudioRingTests.cpp
     PassThroughTests.cpp
+    PresetStoreTests.cpp
+    StateCodecTests.cpp
     scope/PhosphorBufferTests.cpp
     scope/ScopeLayoutTests.cpp
     scope/StereoAnalysisTests.cpp

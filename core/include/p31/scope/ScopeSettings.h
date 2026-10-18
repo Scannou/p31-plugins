@@ -10,10 +10,12 @@
 
 #pragma once
 
+#include "p31/core/Appearance.h"
 #include "p31/scope/ScopeLayout.h"
 
 #include <algorithm>
 #include <cstdint>
+#include <string>
 
 namespace p31::scope {
 
@@ -92,6 +94,7 @@ struct ScopeSettings {
     bool showGrid = true;          // outline, level guides, axes
     bool showLabels = true;        // L / R / M / S and the correlation scale
     int  gridOpacity = 40;         // 0-100
+    int  appearance = AppearanceAuto;
     int  theme = 1;                // index into kThemes; 0 = custom colors
     ScopeColors light{0xFF1B8A3A, 0xFFF4F4F4, 0xFF9AA0A0, {0xFFB86A00, 0xFF1B8A3A, 0xFF2E7DD1}};
     ScopeColors dark{0xFF33FF66, 0xFF0A0A0A, 0xFF4D4D4D, {0xFFFFB000, 0xFF33FF66, 0xFF4DA3F0}};
@@ -119,9 +122,50 @@ struct ScopeSettings {
         s.lowHz = std::clamp(lowHz, kMinLowHz, kMaxLowHz);
         s.highHz = std::clamp(highHz, kMinHighHz, kMaxHighHz);
         s.gridOpacity = std::clamp(gridOpacity, 0, 100);
+        s.appearance = pick(appearance, AppearanceAuto, AppearanceDark, AppearanceAuto);
+        s.theme = pick(theme, 0, 11, 0);   // kThemeCount - 1
         return s;
     }
 };
+
+// Every field with its state key, for StateWriter / StateReader.
+template <class S, class Visitor>
+void visitColors(S& c, const char* prefix, Visitor&& v) {
+    const std::string p(prefix);
+    v(p + "trace", c.trace);
+    v(p + "background", c.background);
+    v(p + "grid", c.grid);
+    v(p + "band_low", c.bands[0]);
+    v(p + "band_mid", c.bands[1]);
+    v(p + "band_high", c.bands[2]);
+}
+
+template <class Visitor>
+void visitFields(ScopeSettings& s, Visitor&& v) {
+    v("style", s.style);
+    v("draw_mode", s.drawMode);
+    v("trace_color_mode", s.traceColorMode);
+    v("dot_size_tenths", s.dotSizeTenths);
+    v("persistence_ms", s.persistenceMs);
+    v("brightness", s.brightness);
+    v("auto_gain", s.autoGain);
+    v("gain_db", s.gainDb);
+    v("show_correlation", s.showCorrelation);
+    v("correlation_mode", s.correlationMode);
+    v("meter_position", s.meterPosition);
+    v("bar_thickness", s.barThickness);
+    v("integration_ms", s.integrationMs);
+    v("range_hold_ms", s.rangeHoldMs);
+    v("low_hz", s.lowHz);
+    v("high_hz", s.highHz);
+    v("show_grid", s.showGrid);
+    v("show_labels", s.showLabels);
+    v("grid_opacity", s.gridOpacity);
+    v("appearance", s.appearance);
+    v("theme", s.theme);
+    visitColors(s.light, "light.", v);
+    visitColors(s.dark, "dark.", v);
+}
 
 // --- Themes ---
 //
@@ -177,6 +221,8 @@ inline constexpr ScopeTheme kThemes[] = {
 };
 
 inline constexpr int kThemeCount = static_cast<int>(sizeof(kThemes) / sizeof(kThemes[0]));
+// sanitized() checks the theme index against this count.
+static_assert(kThemeCount == 12);
 
 // Stamp a preset's colors into `s`. No-op for 0 (Custom) or an invalid index.
 inline void applyTheme(ScopeSettings& s, int index) {

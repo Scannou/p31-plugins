@@ -14,6 +14,8 @@ target_compile_options(p31-pffft PRIVATE -w)
 
 add_library(p31-core STATIC
     src/AudioRing.cpp
+    src/PresetStore.cpp
+    src/StateCodec.cpp
     src/scope/PhosphorBuffer.cpp
     src/scope/StereoAnalysis.cpp
     src/spectrum/BandMap.cpp

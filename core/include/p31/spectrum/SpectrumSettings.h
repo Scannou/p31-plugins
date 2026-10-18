@@ -10,11 +10,13 @@
 
 #pragma once
 
+#include "p31/core/Appearance.h"
 #include "p31/spectrum/SpectrumAnalyzer.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <string>
 
 namespace p31::spectrum {
 
@@ -109,6 +111,7 @@ struct SpectrumSettings {
     bool showDbGuides = true;
     bool showFreqAxis = true;
     int  gridOpacity = 84;         // 0-100
+    int  appearance = AppearanceAuto;
     int  theme = 1;                // index into kThemes; 0 = custom colors
     SpectrumColors light{0xFF2E7DD1, 0xFFF2F2F2, 0xFF808080};
     SpectrumColors dark{0xFF4DA3F0, 0xFF161616, 0xFF909090};
@@ -146,12 +149,59 @@ struct SpectrumSettings {
         s.topDb = std::clamp(topDb, kMinTopDb, kMaxTopDb);
         s.rangeDb = oneOf(rangeDb, kRangeDbChoices, 90);
         s.gridOpacity = std::clamp(gridOpacity, 0, 100);
+        s.appearance = pick(appearance, AppearanceAuto, AppearanceDark, AppearanceAuto);
+        s.theme = pick(theme, 0, 10, 0);   // kThemeCount - 1
         return s;
     }
 
     // The bar count follows the view size ("Auto" bars, or Curve mode).
     bool viewSizedBars() const { return barCount == kBarCountAuto || drawMode == DrawModeCurve; }
 };
+
+// Every field with its state key, for StateWriter / StateReader.
+template <class S, class Visitor>
+void visitColors(S& c, const char* prefix, Visitor&& v) {
+    const std::string p(prefix);
+    v(p + "bar", c.bar);
+    v(p + "background", c.background);
+    v(p + "grid", c.grid);
+}
+
+template <class Visitor>
+void visitFields(SpectrumSettings& s, Visitor&& v) {
+    v("fft_size", s.fftSize);
+    v("window", s.window);
+    v("min_hz", s.minHz);
+    v("max_hz", s.maxHz);
+    v("freq_scale", s.freqScale);
+    v("stereo_mode", s.stereoMode);
+    v("slope_tenths", s.slopeTenths);
+    v("smoothing_mode", s.smoothingMode);
+    v("smoothing", s.smoothing);
+    v("rms_ms", s.rmsMs);
+    v("shadow_fill", s.shadowFill);
+    v("shadow_fall_speed", s.shadowFallSpeed);
+    v("peak_hold", s.peakHold);
+    v("peak_fall_db_s", s.peakFallDbPerSec);
+    v("peak_hold_ms", s.peakHoldMs);
+    v("draw_mode", s.drawMode);
+    v("curve_style", s.curveStyle);
+    v("curve_octave_fraction", s.curveOctaveFraction);
+    v("color_bar_brightness", s.colorBarBrightness);
+    v("bar_count", s.barCount);
+    v("bar_style", s.barStyle);
+    v("gap_percent", s.gapPercent);
+    v("orientation", s.orientation);
+    v("top_db", s.topDb);
+    v("range_db", s.rangeDb);
+    v("show_db_guides", s.showDbGuides);
+    v("show_freq_axis", s.showFreqAxis);
+    v("grid_opacity", s.gridOpacity);
+    v("appearance", s.appearance);
+    v("theme", s.theme);
+    visitColors(s.light, "light.", v);
+    visitColors(s.dark, "dark.", v);
+}
 
 // Analyzer settings for these user settings. `viewBarCount` is the count
 // that fits the view, used when viewSizedBars().
@@ -218,6 +268,8 @@ inline constexpr SpectrumTheme kThemes[] = {
 };
 
 inline constexpr int kThemeCount = static_cast<int>(sizeof(kThemes) / sizeof(kThemes[0]));
+// sanitized() checks the theme index against this count.
+static_assert(kThemeCount == 11);
 
 // Stamp a preset's colors into `s`. No-op for 0 (Custom) or an invalid index.
 inline void applyTheme(SpectrumSettings& s, int index) {
