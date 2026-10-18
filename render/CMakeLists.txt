@@ -15,3 +15,10 @@ target_sources(p31-render-scope INTERFACE
 )
 target_include_directories(p31-render-scope INTERFACE scope/include)
 target_link_libraries(p31-render-scope INTERFACE p31-render-common p31-core)
+
+add_library(p31-render-spectrum INTERFACE)
+target_sources(p31-render-spectrum INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/spectrum/src/SpectrumView.mm
+)
+target_include_directories(p31-render-spectrum INTERFACE spectrum/include)
+target_link_libraries(p31-render-spectrum INTERFACE p31-render-common p31-core)

@@ -25,3 +25,4 @@
 #define P31AnimatedView       P31_OBJC_CLASS(P31AnimatedView)
 #define P31DisplayLinkTarget  P31_OBJC_CLASS(P31DisplayLinkTarget)
 #define P31ScopeView          P31_OBJC_CLASS(P31ScopeView)
+#define P31SpectrumView       P31_OBJC_CLASS(P31SpectrumView)
