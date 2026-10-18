@@ -61,4 +61,15 @@ function(p31_add_plugin)
         STANDALONE_CONFIGURATIONS
             standalone "${P_DISPLAY_NAME}" "${P_ID}"
     )
+
+    # Bundle metadata clap-wrapper leaves empty or derives from the name.
+    set(copyright "Copyright (c) 2026 Scannou. MIT License.")
+    foreach(format clap vst3 auv2)
+        set_target_properties(${P_NAME}_${format} PROPERTIES MACOSX_BUNDLE_COPYRIGHT "${copyright}")
+    endforeach()
+    set_target_properties(${P_NAME}_standalone PROPERTIES
+        MACOSX_BUNDLE_INFO_PLIST "${PROJECT_SOURCE_DIR}/cmake/Standalone-Info.plist.in"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "${P_ID}.standalone"
+        MACOSX_BUNDLE_COPYRIGHT "${copyright}"
+    )
 endfunction()
