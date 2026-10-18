@@ -1,6 +1,7 @@
 # Build, test and validate every push; package every build. A v* tag (that
-# matches the project version) also signs, notarizes and publishes a GitHub
-# release. Signing setup: see "Releases" in README.md.
+# matches the project version) also publishes a GitHub release: signed and
+# notarized when the Apple signing secrets are set (see "Releases" in
+# README.md), otherwise unsigned, with install notes for Gatekeeper.
 name: CI
 
 on:
@@ -24,8 +25,13 @@ jobs:
   build:
     runs-on: macos-15
     timeout-minutes: 60
+    outputs:
+      signed: ${{ steps.flags.outputs.signed }}
     env:
       RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') }}
+      # Signing needs a paid Apple Developer account; without its secrets a
+      # release is built unsigned.
+      SIGNING: ${{ secrets.DEVELOPER_ID_APP_P12_BASE64 != '' && secrets.DEVELOPER_ID_INSTALLER_P12_BASE64 != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -69,11 +75,11 @@ jobs:
           scripts/validate.sh build/release
 
       - name: Package (unsigned)
-        if: env.RELEASE != 'true'
+        if: env.RELEASE != 'true' || env.SIGNING != 'true'
         run: scripts/package.sh --skip-build
 
       - name: Import signing certificates
-        if: env.RELEASE == 'true'
+        if: env.RELEASE == 'true' && env.SIGNING == 'true'
         env:
           APP_P12: ${{ secrets.DEVELOPER_ID_APP_P12_BASE64 }}
           INSTALLER_P12: ${{ secrets.DEVELOPER_ID_INSTALLER_P12_BASE64 }}
@@ -95,7 +101,7 @@ jobs:
           echo "SIGNING_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
 
       - name: Package, sign and notarize
-        if: env.RELEASE == 'true'
+        if: env.RELEASE == 'true' && env.SIGNING == 'true'
         env:
           P31_SIGN_ID: ${{ vars.P31_SIGN_ID }}
           P31_INSTALLER_ID: ${{ vars.P31_INSTALLER_ID }}
@@ -111,6 +117,10 @@ jobs:
       - name: Remove signing keychain
         if: always() && env.SIGNING_KEYCHAIN != ''
         run: security delete-keychain "$SIGNING_KEYCHAIN"
+
+      - name: Record whether the package is signed
+        id: flags
+        run: echo "signed=$([[ "$RELEASE" == true && "$SIGNING" == true ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -132,6 +142,21 @@ jobs:
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+          SIGNED: ${{ needs.build.outputs.signed }}
         run: |
+          notes="$RUNNER_TEMP/notes.md"
+          if [[ "$SIGNED" == true ]]; then
+            echo "Signed and notarized installer for macOS 12 or later (Apple silicon and Intel)." > "$notes"
+          else
+            cat > "$notes" <<'EOF'
+          **Unsigned build.** macOS will not open the installer directly. After downloading:
+
+          - macOS 15 or later: double-click the .pkg, then open System Settings → Privacy & Security and click *Open Anyway*.
+          - macOS 12–14: right-click (Control-click) the .pkg and choose *Open*.
+          - Or in Terminal: `xattr -d com.apple.quarantine P31-Plugins-*.pkg`
+
+          The installed plugins then load normally in your DAW.
+          EOF
+          fi
           gh release create "$GITHUB_REF_NAME" dist/*.pkg --repo "$GITHUB_REPOSITORY" \
-            --title "P31 Plugins ${GITHUB_REF_NAME#v}" --generate-notes
+            --title "P31 Plugins ${GITHUB_REF_NAME#v}" --notes-file "$notes" --generate-notes

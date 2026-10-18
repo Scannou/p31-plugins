@@ -158,8 +158,16 @@ The package is signed, notarized and stapled.
 
 CI (`.github/workflows/ci.yml`) builds, tests, validates and packages every push
 and pull request; the unsigned package is attached to each run. Pushing a tag
-`v<version>` (matching `project(... VERSION ...)` in CMakeLists.txt) also signs,
-notarizes and publishes a GitHub release. It needs these repository settings:
+`v<version>` (matching `project(... VERSION ...)` in CMakeLists.txt) also
+publishes a GitHub release:
+
+```sh
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+Without signing secrets the release carries the unsigned package, and its notes
+explain how to open it past Gatekeeper. With these repository settings (they
+need a paid Apple Developer account) it is signed and notarized instead:
 
 | Kind | Name | Value |
 |---|---|---|
