@@ -9,13 +9,27 @@ Audio analyzer plugins for macOS, ported from the foobar2000 components in
 Both are CLAP plugins, wrapped by [clap-wrapper](https://github.com/free-audio/clap-wrapper)
 into VST3, AUv2 and a standalone app. Audio passes through untouched with zero latency.
 
-Status: phase 4. Both plugins work with the fb2k components' default settings;
-a settings UI and saved settings come in phase 5.
+Status: phase 5. Both plugins are feature complete for macOS: settings page,
+presets, settings saved with the project. CI, signing and an installer come in
+phase 6.
 
 - P31 Scope: goniometer / Lissajous, afterglow, tri-band correlation meter.
 - P31 Spectrum: overlapping windowed FFT (vDSP, pffft fallback), log /
   compact-bass log / linear frequency axis, RMS or attack/decay smoothing,
   shadow and peak lines, curve or bar display.
+
+## Using the plugins
+
+- **Settings**: hover over the editor and click the sliders icon (top right), or
+  right-click anywhere. Everything is saved with the project.
+- **Presets**: the Presets button on the settings page (or the right-click
+  menu) has factory presets, your own presets (saved in
+  `~/Library/Audio/Presets/P31/<plugin>/`) and "Use Current Settings for New
+  Instances". Loading a preset keeps the instance's light / dark appearance.
+- **Parameters** (automatable): *Freeze* holds the picture still, *Gain*
+  (±24 dB) changes the level the analyzer sees. Audio always passes through
+  untouched.
+- **Appearance**: follow the system, or fixed light or dark per instance.
 
 ## Requirements
 
@@ -56,7 +70,10 @@ build/dev/dev/p31-snapshot "build/dev/plugins/P31 Scope.clap" scope.png mix 2
 Loads the plugin, opens its editor, plays a test signal for the given seconds
 and saves the editor as PNG. Signals: `mix`, `mono`, `left`, `wide`, `antiphase`,
 `silence` (for the scope), `sine`, `tones`, `white` (for the spectrum). Optional
-width and height follow the seconds.
+width and height follow the seconds; a trailing `settings [scroll]` opens the
+settings page. `P31_STATE=<file>` loads settings text (`key=value` lines) as
+the plugin state first, `P31_SELECT=<item>` picks a settings pop-up item, and
+`P31_DUMP_STATE=1` prints the saved state at the end.
 
 ## Validate
 
