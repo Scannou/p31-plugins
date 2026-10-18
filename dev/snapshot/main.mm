@@ -7,7 +7,9 @@
 //  time, and after a while saves the editor's pixels to a PNG.
 //
 //  p31-snapshot <plugin.clap> <out.png> [signal] [seconds] [width] [height]
-//  signals: mix (default), mono, left, wide, antiphase, silence
+//  signals: mix (default), mono, left, wide, antiphase, silence,
+//           sine (1 kHz at -6 dBFS), tones (100 Hz / 1 kHz / 10 kHz at -12 dBFS),
+//           white (white noise at -20 dBFS RMS)
 //
 
 #import <Cocoa/Cocoa.h>
@@ -49,6 +51,16 @@ void signalAt(const std::string& name, uint64_t n, std::mt19937& rng, float& l, 
     if (name == "antiphase") {
         l = static_cast<float>(0.5 * std::sin(2 * kPi * 220 * t));
         r = -l;
+        return;
+    }
+    if (name == "sine") { l = r = static_cast<float>(0.5 * std::sin(2 * kPi * 1000 * t)); return; }
+    if (name == "tones") {
+        l = r = static_cast<float>(0.25 * (std::sin(2 * kPi * 100 * t) + std::sin(2 * kPi * 1000 * t) +
+                                           std::sin(2 * kPi * 10000 * t)));
+        return;
+    }
+    if (name == "white") {
+        l = r = 0.1f * noise(rng);
         return;
     }
     if (name == "wide") {

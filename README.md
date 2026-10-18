@@ -9,10 +9,13 @@ Audio analyzer plugins for macOS, ported from the foobar2000 components in
 Both are CLAP plugins, wrapped by [clap-wrapper](https://github.com/free-audio/clap-wrapper)
 into VST3, AUv2 and a standalone app. Audio passes through untouched with zero latency.
 
-Status: phase 3. P31 Scope works (goniometer / Lissajous, afterglow, tri-band
-correlation meter, resizable editor) with the fb2k component's default
-settings; a settings UI and saved settings come in phase 5. P31 Spectrum is
-still a pass-through.
+Status: phase 4. Both plugins work with the fb2k components' default settings;
+a settings UI and saved settings come in phase 5.
+
+- P31 Scope: goniometer / Lissajous, afterglow, tri-band correlation meter.
+- P31 Spectrum: overlapping windowed FFT (vDSP, pffft fallback), log /
+  compact-bass log / linear frequency axis, RMS or attack/decay smoothing,
+  shadow and peak lines, curve or bar display.
 
 ## Requirements
 
@@ -50,8 +53,10 @@ cmake --preset asan && cmake --build --preset asan && ctest --preset asan
 build/dev/dev/p31-snapshot "build/dev/plugins/P31 Scope.clap" scope.png mix 2
 ```
 
-Loads the plugin, opens its editor, plays a test signal (`mix`, `mono`, `left`,
-`wide`, `antiphase`, `silence`) for the given seconds and saves the editor as PNG.
+Loads the plugin, opens its editor, plays a test signal for the given seconds
+and saves the editor as PNG. Signals: `mix`, `mono`, `left`, `wide`, `antiphase`,
+`silence` (for the scope), `sine`, `tones`, `white` (for the spectrum). Optional
+width and height follow the seconds.
 
 ## Validate
 
@@ -65,19 +70,19 @@ Runs clap-validator, the Steinberg VST3 validator, `auval -strict` and pluginval
 ## Layout
 
 ```
-core/            pure C++20 DSP, no platform deps (tests in core/tests)
+core/            C++20 DSP; only platform code is the vDSP FFT backend (tests in core/tests)
 render/          AppKit views, compiled into each plugin (unique ObjC class names)
 plugins/common/  shared CLAP shell (ports, state, pass-through, editor hosting)
 plugins/spectrum/
 plugins/scope/
 dev/             developer tools (p31-snapshot)
 cmake/ scripts/
-libs/            SDK submodules (CLAP, clap-wrapper, VST3 SDK, AudioUnitSDK, RtAudio, RtMidi, doctest)
+libs/            submodules (CLAP, clap-wrapper, VST3 SDK, AudioUnitSDK, RtAudio, RtMidi, pffft, doctest)
 ```
 
 ## License
 
 MIT, see [LICENSE](LICENSE). Bundled SDKs: CLAP, clap-wrapper and the VST3 SDK (3.8+)
 are MIT; Apple's AudioUnitSDK is Apache 2.0; RtAudio and RtMidi use MIT-style licenses;
-doctest (tests only) is MIT.
+pffft uses the BSD-style FFTPACK license; doctest (tests only) is MIT.
 Shipping binaries must include their notices (handled in phase 6).
