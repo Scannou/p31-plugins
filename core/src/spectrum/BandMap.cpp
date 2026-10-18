@@ -106,15 +106,29 @@ void BandMap::build(const Config& config) {
 float BandMap::plainLevel(int i, const float* mag, float topDb, float rangeDb) const {
     const int bins = static_cast<int>(binCount());
     const float gain = _gain[i];
-    // Narrower than a bin: interpolated at the centre, in dB, so the curve
-    // runs straight between bins instead of sagging towards the quieter one.
+    // Narrower than a bin: interpolated at the centre, in dB (so the curve
+    // does not sag towards the quieter bin), along a monotone cubic through
+    // the neighbouring bins. Straight segments would show the coarse bin
+    // spacing of the bass as corners; the cubic rounds them without ever
+    // overshooting a bin's level (Steffen's tangents).
     const float centre = _centre[i];
     if (centre >= 1.0f && centre < static_cast<float>(bins - 1)) {
         const int b0 = static_cast<int>(centre);
         const float t = centre - static_cast<float>(b0);
-        const float d0 = magnitudeToDisplay(mag[b0] * gain, topDb, rangeDb);
-        const float d1 = magnitudeToDisplay(mag[b0 + 1] * gain, topDb, rangeDb);
-        return d0 * (1.0f - t) + d1 * t;
+        const auto at = [&](int b) { return magnitudeToDisplay(mag[b] * gain, topDb, rangeDb); };
+        const float d0 = at(b0), d1 = at(b0 + 1);
+        const float dPrev = b0 > 1 ? at(b0 - 1) : d0;          // bin 0 is DC
+        const float dNext = b0 + 2 < bins ? at(b0 + 2) : d1;
+        // Steffen's tangent from the slopes either side (unit spacing).
+        const auto tangent = [](float s0, float s1) {
+            if (s0 * s1 <= 0.0f) return 0.0f;                   // extremum or flat
+            const float limit = std::min({std::fabs(s0), std::fabs(s1), 0.25f * std::fabs(s0 + s1)});
+            return (s0 > 0.0f ? 2.0f : -2.0f) * limit;
+        };
+        const float m0 = tangent(d0 - dPrev, d1 - d0);
+        const float m1 = tangent(d1 - d0, dNext - d1);
+        const float t2 = t * t, t3 = t2 * t;
+        return (2 * t3 - 3 * t2 + 1) * d0 + (t3 - 2 * t2 + t) * m0 + (-2 * t3 + 3 * t2) * d1 + (t3 - t2) * m1;
     }
     // Otherwise the loudest of its bins (reads punchier than the average).
     float m = 0.0f;

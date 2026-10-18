@@ -272,7 +272,7 @@ TEST_CASE("sanitized pulls stored values back into range") {
     CHECK(s.fftSize == 2048);
     CHECK(s.rangeDb == 90);
     CHECK(s.freqScale == FreqScaleSoftLog);
-    CHECK(s.curveOctaveFraction == 0);
+    CHECK(s.curveOctaveFraction == 24);   // the default
     CHECK(s.barCount == kMaxBarCount);
     CHECK(s.peakFallDbPerSec == kMinPeakFallDbPerSec);
 

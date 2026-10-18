@@ -98,7 +98,7 @@ struct SpectrumSettings {
     // Display
     int  drawMode = DrawModeCurve;
     int  curveStyle = CurveStyleLineColorBars;
-    int  curveOctaveFraction = 0;  // curve detail: 0 = full, N = 1/N octave smoothing
+    int  curveOctaveFraction = 24; // curve detail: 0 = full, N = 1/N octave smoothing
     int  colorBarBrightness = 69;  // strength of the loudest color bar, % (10-100)
     int  barCount = kBarCountAuto;
     int  barStyle = BarStyleGradient;
@@ -139,7 +139,7 @@ struct SpectrumSettings {
         s.peakHoldMs = std::clamp(peakHoldMs, 0, kMaxPeakHoldMs);
         s.drawMode = pick(drawMode, DrawModeBars, DrawModeCurve, DrawModeCurve);
         s.curveStyle = pick(curveStyle, CurveStyleFilled, CurveStyleLineColorBars, CurveStyleLineColorBars);
-        s.curveOctaveFraction = oneOf(curveOctaveFraction, kCurveOctaveFractions, 0);
+        s.curveOctaveFraction = oneOf(curveOctaveFraction, kCurveOctaveFractions, 24);
         s.colorBarBrightness = std::clamp(colorBarBrightness, 10, 100);
         s.barCount = barCount <= kBarCountAuto ? kBarCountAuto
                                                : std::clamp(barCount, SpectrumAnalyzer::kMinBarCount, kMaxBarCount);

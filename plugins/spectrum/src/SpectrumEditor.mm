@@ -63,6 +63,7 @@ std::vector<std::pair<std::string, SpectrumSettings>> factoryPresets() {
 
     SpectrumSettings detail;
     detail.curveStyle = CurveStyleLine;
+    detail.curveOctaveFraction = 0;
     detail.fftSize = 16384;
     detail.window = WindowBlackmanHarris;
     detail.freqScale = FreqScaleLog;

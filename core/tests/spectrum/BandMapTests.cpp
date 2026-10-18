@@ -185,3 +185,42 @@ TEST_CASE("Range above Nyquist is clamped") {
     for (int i = 0; i < map.bandCount(); ++i) CHECK(map.highBin(i) < static_cast<int>(map.binCount()));
     CHECK(map.centreHz(63) < 11025.0);
 }
+
+TEST_CASE("Sub-bin interpolation is smooth and never overshoots its bins") {
+    BandMap map;
+    BandMap::Config c = config(FreqScaleLog, 600);
+    c.fftSize = 2048;   // 23 Hz bins: the bass bands read between bins
+    map.build(c);
+    std::vector<float> mag(map.binCount());
+    for (size_t b = 0; b < mag.size(); ++b) mag[b] = 0.05f + 0.04f * static_cast<float>(std::sin(0.9 * b));
+    std::vector<float> out(600);
+    map.read(mag.data(), 0.0f, 90.0f, out.data());
+
+    int checked = 0;
+    for (int i = 0; i < map.bandCount(); ++i) {
+        const float centre = map.centreBin(i);
+        if (centre <= 1.0f || centre >= static_cast<float>(map.binCount() - 2)) continue;
+        const int b0 = static_cast<int>(centre);
+        const float d0 = magnitudeToDisplay(mag[b0], 0.0f, 90.0f);
+        const float d1 = magnitudeToDisplay(mag[b0 + 1], 0.0f, 90.0f);
+        CHECK(out[i] >= std::min(d0, d1) - 1e-6f);
+        CHECK(out[i] <= std::max(d0, d1) + 1e-6f);
+        ++checked;
+    }
+    CHECK(checked > 50);
+
+    // Smooth: at a single loud bin the curve levels off into a rounded top.
+    // Straight segments would meet there in a corner, keeping their full
+    // slope right up to the bin.
+    std::fill(mag.begin(), mag.end(), 0.01f);
+    mag[5] = 0.1f;   // 117 Hz, 20 dB above its neighbours
+    map.read(mag.data(), 0.0f, 90.0f, out.data());
+    int below = -1;
+    for (int i = 0; i + 1 < map.bandCount(); ++i) {
+        if (map.centreBin(i) < 5.0f && map.centreBin(i + 1) >= 5.0f) below = i;
+    }
+    REQUIRE(below >= 0);
+    const float binSlope = magnitudeToDisplay(0.1f, 0.0f, 90.0f) - magnitudeToDisplay(0.01f, 0.0f, 90.0f);
+    const float slope = (out[below + 1] - out[below]) / (map.centreBin(below + 1) - map.centreBin(below));
+    CHECK(std::fabs(slope) < 0.25f * binSlope);
+}
