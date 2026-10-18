@@ -9,6 +9,7 @@
 #include <doctest/doctest.h>
 
 #include <algorithm>
+#include <string>
 #include <cmath>
 #include <vector>
 
@@ -248,11 +249,11 @@ TEST_CASE("Settings map to analyzer rates as in fb2k") {
     CHECK(s.barCount == 321);
     CHECK(s.smoothingMode == SmoothingRms);
     CHECK(s.freqScale == FreqScaleSoftLog);
-    CHECK(s.peakFall == doctest::Approx(12.0 / 60.0 / 90.0));
+    CHECK(s.peakFall == doctest::Approx(12.0 / 60.0 / 80.0));   // 80 dB range by default
     CHECK(s.peakHoldSec == doctest::Approx(0.92));
     CHECK(s.slopeDbPerOct == doctest::Approx(2.0));   // our default; fb2k's was flat
     // RMS: the shadow falls slower than the RMS curve can.
-    const double curveFall = 10.0 * std::log10(std::exp(1.0)) / 0.27 / 60.0 / 90.0;
+    const double curveFall = 10.0 * std::log10(std::exp(1.0)) / 0.27 / 60.0 / 80.0;
     CHECK(s.shadowFall < curveFall);
 
     u.drawMode = DrawModeBars;
@@ -271,7 +272,7 @@ TEST_CASE("sanitized pulls stored values back into range") {
     u.peakFallDbPerSec = 0;
     const SpectrumSettings s = u.sanitized();
     CHECK(s.fftSize == 2048);
-    CHECK(s.rangeDb == 90);
+    CHECK(s.rangeDb == 80);   // the default
     CHECK(s.freqScale == FreqScaleSoftLog);
     CHECK(s.curveOctaveFraction == 24);   // the default
     CHECK(s.barCount == kMaxBarCount);
@@ -283,4 +284,16 @@ TEST_CASE("sanitized pulls stored values back into range") {
     CHECK(t.dark.bar == kThemes[3].dark.bar);
     applyTheme(t, 0);
     CHECK(t.theme == 3);
+}
+
+TEST_CASE("Default colors are the P31 phosphor theme, listed first") {
+    const SpectrumSettings s;
+    REQUIRE(s.theme > 0);
+    CHECK(std::string(kThemes[s.theme].name) == "P31 green");
+    CHECK(s.dark.bar == kThemes[s.theme].dark.bar);
+    CHECK(s.light.background == kThemes[s.theme].light.background);
+    CHECK(kThemeMenuOrder[1] == s.theme);
+    std::vector<int> order(std::begin(kThemeMenuOrder), std::end(kThemeMenuOrder));
+    std::sort(order.begin(), order.end());
+    for (int i = 0; i < kThemeCount; ++i) CHECK(order[static_cast<size_t>(i)] == i);   // every theme once
 }

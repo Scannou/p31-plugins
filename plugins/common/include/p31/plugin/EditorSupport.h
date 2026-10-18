@@ -75,6 +75,14 @@ std::vector<std::pair<std::string, int>> themeChoices(const Themes& themes) {
     return out;
 }
 
+// The same, listed in `order` (theme indices).
+template <class Themes, class Order>
+std::vector<std::pair<std::string, int>> themeChoices(const Themes& themes, const Order& order) {
+    std::vector<std::pair<std::string, int>> out;
+    for (int i : order) out.emplace_back(themes[i].name, i);
+    return out;
+}
+
 // Gain and freeze as last seen, to notice host automation once per frame.
 struct ParamWatch {
     double gain = 0.0;

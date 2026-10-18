@@ -105,16 +105,16 @@ struct SpectrumSettings {
     int  gapPercent = 12;          // gap between bars, % of slot width
     int  orientation = OrientationHorizontal;
     int  topDb = 0;                // level at the top of the display
-    int  rangeDb = 90;             // dB from the top to the bottom
+    int  rangeDb = 80;             // dB from the top to the bottom
 
     // Appearance
     bool showDbGuides = true;
     bool showFreqAxis = true;
-    int  gridOpacity = 84;         // 0-100
+    int  gridOpacity = 11;         // 0-100: decade lines; the ones between at 45 % of it
     int  appearance = AppearanceAuto;
-    int  theme = 1;                // index into kThemes; 0 = custom colors
-    SpectrumColors light{0xFF2E7DD1, 0xFFF2F2F2, 0xFF808080};
-    SpectrumColors dark{0xFF4DA3F0, 0xFF161616, 0xFF909090};
+    int  theme = 11;               // index into kThemes (P31 green); 0 = custom colors
+    SpectrumColors light{0xFF1B8A3A, 0xFFF1F5F2, 0xFF5F7A66};
+    SpectrumColors dark{0xFF4CFF7C, 0xFF0C120E, 0xFFB8E6C4};
 
     // A copy with every value inside the range the controls offer (state
     // loaded from disk is untrusted).
@@ -147,10 +147,10 @@ struct SpectrumSettings {
         s.gapPercent = std::clamp(gapPercent, 0, 80);
         s.orientation = pick(orientation, OrientationHorizontal, OrientationVertical, OrientationHorizontal);
         s.topDb = std::clamp(topDb, kMinTopDb, kMaxTopDb);
-        s.rangeDb = oneOf(rangeDb, kRangeDbChoices, 90);
+        s.rangeDb = oneOf(rangeDb, kRangeDbChoices, 80);
         s.gridOpacity = std::clamp(gridOpacity, 0, 100);
         s.appearance = pick(appearance, AppearanceAuto, AppearanceDark, AppearanceAuto);
-        s.theme = pick(theme, 0, 10, 0);   // kThemeCount - 1
+        s.theme = pick(theme, 0, 14, 0);   // kThemeCount - 1
         return s;
     }
 
@@ -265,11 +265,23 @@ inline constexpr SpectrumTheme kThemes[] = {
     {"Catppuccin", {0xFF8839EF, 0xFFEFF1F5, 0xFFBCC0CC}, {0xFFCBA6F7, 0xFF1E1E2E, 0xFF45475A}},
     {"Monokai", {0xFF4E9A06, 0xFFF8F8F2, 0xFFC8C8B8}, {0xFFA6E22E, 0xFF272822, 0xFF49483E}},
     {"Sunset", {0xFFE8551A, 0xFFFFF3EC, 0xFFD8B8A0}, {0xFFFF6B35, 0xFF1A0F0A, 0xFF4D3326}},
+    // Named after CRT phosphors. Added after the older themes so the theme
+    // index saved in existing projects keeps its meaning; the menu lists
+    // them first (kThemeMenuOrder). One colour per theme: the level colour,
+    // a near-black background tinted towards it, and a pale grid.
+    {"P31 green", {0xFF1B8A3A, 0xFFF1F5F2, 0xFF5F7A66}, {0xFF4CFF7C, 0xFF0C120E, 0xFFB8E6C4}},
+    {"P3 amber", {0xFFB86A00, 0xFFF7F3EA, 0xFF7D6E55}, {0xFFFFB000, 0xFF130F07, 0xFFE8D4AE}},
+    {"P4 white", {0xFF3C434B, 0xFFF4F5F6, 0xFF6E767E}, {0xFFE6EDF2, 0xFF0F1113, 0xFFD5DCE2}},
+    {"P7 blue", {0xFF2D6CC0, 0xFFF0F4F9, 0xFF64748A}, {0xFF6FB7FF, 0xFF0A0E15, 0xFFC4D6EC}},
 };
 
 inline constexpr int kThemeCount = static_cast<int>(sizeof(kThemes) / sizeof(kThemes[0]));
 // sanitized() checks the theme index against this count.
-static_assert(kThemeCount == 11);
+static_assert(kThemeCount == 15);
+
+// Theme menu order: Custom, the phosphors, then the rest.
+inline constexpr int kThemeMenuOrder[] = {0, 11, 12, 13, 14, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+static_assert(sizeof(kThemeMenuOrder) / sizeof(kThemeMenuOrder[0]) == kThemeCount);
 
 // Stamp a preset's colors into `s`. No-op for 0 (Custom) or an invalid index.
 inline void applyTheme(SpectrumSettings& s, int index) {

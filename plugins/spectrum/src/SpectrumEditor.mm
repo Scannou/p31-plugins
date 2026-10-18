@@ -396,7 +396,7 @@ Form SpectrumEditor::buildForm() {
 
     f.push_back(section("Appearance"));
     f.push_back(p31::editor::appearanceRow(s.appearance));
-    f.push_back(popup("Theme", p31::editor::themeChoices(kThemes), [p] { return p->theme; },
+    f.push_back(popup("Theme", p31::editor::themeChoices(kThemes, kThemeMenuOrder), [p] { return p->theme; },
                       [p](int v) {
                           if (v == 0) p->theme = 0;
                           else applyTheme(*p, v);
