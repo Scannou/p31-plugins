@@ -9,7 +9,8 @@ Audio analyzer plugins for macOS, ported from the foobar2000 components in
 Both are CLAP plugins, wrapped by [clap-wrapper](https://github.com/free-audio/clap-wrapper)
 into VST3, AUv2 and a standalone app. Audio passes through untouched with zero latency.
 
-Status: phase 1. Empty pass-through plugins that pass every validator.
+Status: phase 2. Pass-through plugins that pass every validator, plus the
+lock-free audio→UI ring buffer in `core/` with unit tests.
 
 ## Requirements
 
@@ -33,6 +34,14 @@ Bundles land in `<build>/plugins/`. With `P31_COPY_AFTER_BUILD=ON` (default for
 In CLion: open the folder, enable the `dev` CMake preset, build `p31-spectrum_all`
 or `p31-scope_all`.
 
+## Test
+
+```sh
+ctest --preset dev                                   # core unit tests (doctest)
+cmake --preset tsan && cmake --build --preset tsan && ctest --preset tsan
+cmake --preset asan && cmake --build --preset asan && ctest --preset asan
+```
+
 ## Validate
 
 ```sh
@@ -45,16 +54,17 @@ Runs clap-validator, the Steinberg VST3 validator, `auval -strict` and pluginval
 ## Layout
 
 ```
-core/            pure C++20 DSP, no platform deps
+core/            pure C++20 DSP, no platform deps (tests in core/tests)
 plugins/common/  shared CLAP shell (ports, state, pass-through)
 plugins/spectrum/
 plugins/scope/
 cmake/ scripts/
-libs/            SDK submodules (CLAP, clap-wrapper, VST3 SDK, AudioUnitSDK, RtAudio, RtMidi)
+libs/            SDK submodules (CLAP, clap-wrapper, VST3 SDK, AudioUnitSDK, RtAudio, RtMidi, doctest)
 ```
 
 ## License
 
 MIT, see [LICENSE](LICENSE). Bundled SDKs: CLAP, clap-wrapper and the VST3 SDK (3.8+)
-are MIT; Apple's AudioUnitSDK is Apache 2.0; RtAudio and RtMidi use MIT-style licenses.
+are MIT; Apple's AudioUnitSDK is Apache 2.0; RtAudio and RtMidi use MIT-style licenses;
+doctest (tests only) is MIT.
 Shipping binaries must include their notices (handled in phase 6).
