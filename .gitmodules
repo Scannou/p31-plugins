@@ -16,3 +16,6 @@
 [submodule "libs/rtmidi"]
 	path = libs/rtmidi
 	url = https://github.com/thestk/rtmidi.git
+[submodule "libs/doctest"]
+	path = libs/doctest
+	url = https://github.com/doctest/doctest.git

@@ -20,6 +20,13 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(P31_COPY_AFTER_BUILD "Copy built plugins into ~/Library/Audio/Plug-Ins" ON)
+option(P31_BUILD_TESTS "Build unit tests" ON)
+set(P31_SANITIZER "" CACHE STRING "Build everything with a sanitizer: thread, address or empty")
+
+if (P31_SANITIZER)
+    add_compile_options(-fsanitize=${P31_SANITIZER} -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=${P31_SANITIZER})
+endif()
 
 # --- SDKs (git submodules in libs/, see scripts/bootstrap.sh) ---
 set(CLAP_SDK_ROOT      "${CMAKE_SOURCE_DIR}/libs/clap"         CACHE PATH "")
@@ -31,6 +38,10 @@ set(CLAP_WRAPPER_DOWNLOAD_DEPENDENCIES OFF CACHE BOOL "" FORCE)
 
 add_subdirectory(libs/clap EXCLUDE_FROM_ALL)
 add_subdirectory(libs/clap-wrapper EXCLUDE_FROM_ALL)
+if (P31_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(libs/doctest EXCLUDE_FROM_ALL)
+endif()
 
 include(cmake/P31Plugin.cmake)
 
