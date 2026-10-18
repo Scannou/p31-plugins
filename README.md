@@ -5,28 +5,42 @@
 
 # p31-plugins
 
-Audio analyzer plugins for macOS, ported from the foobar2000 components in
-[fb2k-components-mac-suite](https://github.com/Scannou/fb2k-components-mac-suite):
+A spectrum analyzer and a vectorscope for macOS, as CLAP, VST3 and Audio Unit
+plugins and standalone apps. Ported from the foobar2000 components in
+[fb2k-components-mac-suite](https://github.com/JendaT/fb2k-components-mac-suite).
+Audio passes through untouched, with zero latency.
 
-- **P31 Spectrum** — spectrum analyzer
-- **P31 Scope** — vectorscope / goniometer with tri-band phase correlation
+Status: 0.1.0, macOS 12+ (Apple silicon and Intel). There is no signed release
+yet: build from source, or take the unsigned installer from a CI run (see
+Releases).
 
-Both are CLAP plugins, wrapped by [clap-wrapper](https://github.com/free-audio/clap-wrapper)
-into VST3, AUv2 and a standalone app. Audio passes through untouched with zero latency.
+## P31 Spectrum
 
-Status: phase 6. Both plugins are feature complete for macOS (settings page,
-presets, settings saved with the project), with CI and a signed, notarized
-installer once signing credentials are set up (see Releases).
+![P31 Spectrum, hovering at 143 Hz](assets/screenshots/p31-spectrum.png)
 
-- P31 Scope: goniometer / Lissajous, afterglow, tri-band correlation meter.
-- P31 Spectrum: overlapping windowed FFT (vDSP, pffft fallback), log /
-  compact-bass log / linear frequency axis, RMS or attack/decay smoothing,
-  shadow and peak lines, curve or bar display.
+- Live curve and peak hold, or bars; color bars that brighten where the
+  spectrum is loud
+- Hover readout: frequency, nearest note with cents, and level
+- Overlapping windowed FFT (1024 to 32768 points, Hann or Blackman-Harris),
+  vDSP with a pffft fallback
+- Log, compact-bass log or linear frequency axis; adjustable slope (2 dB/oct
+  by default), range and smoothing (RMS or attack / decay)
+- Mid + side display; vertical layout
+
+## P31 Scope
+
+![P31 Scope, three-band trace and correlation meters](assets/screenshots/p31-scope.png)
+
+- Goniometer (mid / side) or Lissajous (left / right) with phosphor afterglow
+- Trace in one colour or split into low / mid / high bands
+- Correlation meter, single or per band, with a held range of recent swings
+- Auto gain, adjustable afterglow, brightness and crossovers
 
 ## Using the plugins
 
 - **Settings**: hover over the editor and click the sliders icon (top right), or
-  right-click anywhere. Everything is saved with the project.
+  right-click anywhere. Everything is saved with the project. Right-click →
+  About shows the version and licenses.
 - **Presets**: the Presets button on the settings page (or the right-click
   menu) has factory presets, your own presets (saved in
   `~/Library/Audio/Presets/P31/<plugin>/`) and "Use Current Settings for New
@@ -36,16 +50,16 @@ installer once signing credentials are set up (see Releases).
   untouched.
 - **Readout** (P31 Spectrum): hover over the spectrum for the frequency, the
   nearest note with its offset in cents, and the level.
-- **Themes**: P31 green (the default), P3 amber, P4 white and P7 blue, named
-  after CRT phosphors, plus the older colour presets.
+- **Themes**: P7 blue (Spectrum's default), P31 green, P3 amber and P4 white,
+  named after CRT phosphors, plus more colour presets.
 - **Appearance**: follow the system, or fixed light or dark per instance.
 - **Size**: drag the grip in the bottom-right corner. The size is saved with
   the project.
 
 ## Install
 
-Run `P31-Plugins-<version>.pkg` (from the GitHub release, or `scripts/package.sh`).
-"Customize" picks the formats:
+Run `P31-Plugins-<version>.pkg` (from a GitHub release once there is one, a CI
+run's artifacts, or `scripts/package.sh`). "Customize" picks the formats:
 
 | Choice | Installs to |
 |---|---|
@@ -95,11 +109,20 @@ build/dev/dev/p31-snapshot "build/dev/plugins/P31 Scope.clap" scope.png mix 2
 
 Loads the plugin, opens its editor, plays a test signal for the given seconds
 and saves the editor as PNG. Signals: `mix`, `mono`, `left`, `wide`, `antiphase`,
-`silence` (for the scope), `sine`, `tones`, `white` (for the spectrum). Optional
-width and height follow the seconds; a trailing `settings [scroll]` opens the
-settings page. `P31_STATE=<file>` loads settings text (`key=value` lines) as
-the plugin state first, `P31_SELECT=<item>` picks a settings pop-up item, and
-`P31_DUMP_STATE=1` prints the saved state at the end.
+`silence` (for the scope), `sine`, `tones`, `white` (for the spectrum), or
+`file:<path>` with raw stereo float32 audio at 48 kHz
+(`ffmpeg -i song.wav -f f32le -ac 2 -ar 48000 song.f32`). Optional width and
+height follow the seconds; a trailing `settings [scroll]` opens the settings
+page.
+
+| Variable | Effect |
+|---|---|
+| `P31_STATE=<file>` | load settings text (`key=value` lines) as the plugin state first |
+| `P31_SELECT=<item>` | pick that item in a settings pop-up |
+| `P31_HOVER=x,y` | put the mouse at that fraction of the editor (hover readout) |
+| `P31_DRAG=dx,dy` | drag the resize grip, with the host resizing like a DAW |
+| `P31_ABOUT=1` | save the About dialog instead of the editor |
+| `P31_DUMP_STATE=1` | print the saved state at the end |
 
 ## Validate
 
