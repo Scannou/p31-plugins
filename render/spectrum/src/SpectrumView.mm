@@ -202,6 +202,9 @@ static const CGFloat kDbThick = 40.0;    // along the magnitude axis
 static const CGFloat kFreqThick = 20.0;  // along the frequency axis
 // Room past the loud end of the plot, so its dB label is not cut off.
 static const CGFloat kTopInset = 8.0;
+// Empty border on every side: the plot and its labels keep clear of the
+// window edges. The background still fills the whole view.
+static const CGFloat kOuterMargin = 10.0;
 static const CGFloat kLabelFontSize = 10.0;
 // Minor gridlines (between the decades) at this fraction of the grid opacity.
 static const CGFloat kMinorGridAlpha = 0.45;
@@ -210,7 +213,7 @@ static const CGFloat kMinorGridAlpha = 0.45;
 // (the frequency-label margin runs across the other axis), so it is known
 // before bar labels are laid out.
 - (CGFloat)freqAxisLengthForSize:(NSSize)size drawDb:(BOOL *)drawDb drawFreq:(BOOL *)drawFreq {
-    const CGFloat W = size.width, H = size.height;
+    const CGFloat W = size.width - 2 * kOuterMargin, H = size.height - 2 * kOuterMargin;
     if (_vertical) {
         *drawDb   = _showDbGuides && (H > 50.0);   // dB labels along the bottom
         *drawFreq = _showFreqAxis && (W > 80.0);   // freq labels along the right
@@ -234,8 +237,9 @@ static const CGFloat kMinorGridAlpha = 0.45;
 
     CGContextRef ctx = [[NSGraphicsContext currentContext] CGContext];
     const CGRect bounds = self.bounds;
-    const CGFloat W = bounds.size.width;
-    const CGFloat H = bounds.size.height;
+    // The layout below works inside the outer margin.
+    const CGFloat W = bounds.size.width - 2 * kOuterMargin;
+    const CGFloat H = bounds.size.height - 2 * kOuterMargin;
 
     CGContextSetFillColorWithColor(ctx, [self bgColor].CGColor);
     CGContextFillRect(ctx, bounds);
@@ -270,8 +274,8 @@ static const CGFloat kMinorGridAlpha = 0.45;
     const CGFloat plotH = H - bottomMargin - kTopInset;
     if (plotW <= 1.0 || plotH <= 1.0) return;
 
-    _pOx = 0.0;
-    _pOy = bottomMargin;
+    _pOx = kOuterMargin;
+    _pOy = kOuterMargin + bottomMargin;
     _pFreq = _vertical ? plotH : plotW;
     _pMag  = _vertical ? plotW : plotH;
 
@@ -595,7 +599,8 @@ static CGFloat colorBarStrength(CGFloat level) {
             CGContextMoveToPoint(ctx, x, _pOy);
             CGContextAddLineToPoint(ctx, x, _pOy + _pFreq);
             CGContextStrokePath(ctx);
-            [label drawAtPoint:NSMakePoint(x - sz.width / 2, (_pOy - sz.height) / 2) withAttributes:attrs];
+            [label drawAtPoint:NSMakePoint(x - sz.width / 2, kOuterMargin + (_pOy - kOuterMargin - sz.height) / 2)
+                withAttributes:attrs];
         } else {
             CGFloat y = std::round(_pOy + v * _pMag) + 0.5;
             CGContextBeginPath(ctx);
@@ -654,7 +659,7 @@ static CGFloat colorBarStrength(CGFloat level) {
     };
     auto draw = [&](const Placed &p) {
         NSPoint at = _vertical ? NSMakePoint(_pOx + _pMag + 5, _pOy + p.start)
-                               : NSMakePoint(_pOx + p.start, (_pOy - p.size.height) / 2 + 1);
+                               : NSMakePoint(_pOx + p.start, kOuterMargin + (_pOy - kOuterMargin - p.size.height) / 2 + 1);
         [p.label drawAtPoint:at withAttributes:attrs];
     };
 
