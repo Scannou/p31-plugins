@@ -1,0 +1,32 @@
+# Build
+build/
+cmake-build-*/
+out/
+
+# Xcode
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+*.xcuserstate
+
+# Plugin bundles / artifacts
+*.vst3
+*.component
+*.clap
+*.app
+*.pkg
+*.dmg
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+
+# macOS
+.DS_Store
+
+# Local signing/notarization config — never commit
+*.p12
+.env
+# Downloaded dev tools (scripts/bootstrap.sh)
+tools/
