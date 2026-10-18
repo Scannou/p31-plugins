@@ -4,6 +4,8 @@
 [submodule "libs/clap-wrapper"]
 	path = libs/clap-wrapper
 	url = https://github.com/free-audio/clap-wrapper.git
+	# patches/clap-wrapper is applied on top by scripts/bootstrap.sh
+	ignore = dirty
 [submodule "libs/vst3sdk"]
 	path = libs/vst3sdk
 	url = https://github.com/steinbergmedia/vst3sdk.git

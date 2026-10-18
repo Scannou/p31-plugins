@@ -8,6 +8,19 @@ git submodule update --init
 # build; fetch only what clap-wrapper and the validator need.
 git -C libs/vst3sdk submodule update --init --depth 1 base pluginterfaces public.sdk cmake
 
+# Our fixes to submodules, until they are upstream. Each patch is applied
+# once: a patch that already reverses cleanly is in place.
+for patch in patches/*/*.patch; do
+    [[ -e "$patch" ]] || continue
+    module="libs/$(basename "$(dirname "$patch")")"
+    if git -C "$module" apply --reverse --check "$PWD/$patch" 2>/dev/null; then
+        echo "already applied: $patch"
+    else
+        git -C "$module" apply "$PWD/$patch"
+        echo "applied: $patch"
+    fi
+done
+
 CLAP_VALIDATOR_VERSION=0.4.1
 CLAP_VALIDATOR_ASSET=clap-validator-0.4.1-127-g152b982-macos-universal.zip
 if [[ ! -x tools/clap-validator ]]; then

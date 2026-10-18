@@ -1,0 +1,90 @@
+diff --git a/src/detail/auv2/auv2_base_classes.h b/src/detail/auv2/auv2_base_classes.h
+index 2db27a8..b84d16f 100644
+--- a/src/detail/auv2/auv2_base_classes.h
++++ b/src/detail/auv2/auv2_base_classes.h
+@@ -18,6 +18,7 @@
+ #include <CoreMIDI/CoreMIDI.h>
+ #include "auv2_shared.h"
+ #include <iostream>
++#include <atomic>
+ #include <memory>
+ #include <map>
+ #include <mutex>
+@@ -758,6 +759,12 @@ class WrapAsAUV2 : public ausdk::AUBase,
+   std::shared_ptr<Clap::Plugin> _plugin = nullptr;
+ 
+   std::unique_ptr<Clap::AUv2::ProcessAdapter> _processAdapter;
++  // Guards _processAdapter between SetParameter, which hosts call from any
++  // thread, and its creation / deletion in activateCLAP / deactivateCLAP
++  // (AudioUnitInitialize / Uninitialize, often on yet another thread).
++  // Held only around a pointer check and a short copy, never while
++  // rendering; Uninitialize never overlaps a render.
++  std::atomic_flag _processAdapterLock = ATOMIC_FLAG_INIT;
+   std::atomic<bool> _initialized = false;
+ 
+   // some info about the wrapped clap
+diff --git a/src/wrapasauv2.cpp b/src/wrapasauv2.cpp
+index ca783d1..9363125 100644
+--- a/src/wrapasauv2.cpp
++++ b/src/wrapasauv2.cpp
+@@ -568,12 +568,32 @@ OSStatus WrapAsAUV2::GetParameterInfo(AudioUnitScope inScope, AudioUnitParameter
+   return AUBase::GetParameterInfo(inScope, inParameterID, outParameterInfo);
+ }
+ 
++namespace
++{
++// Spin lock guard for WrapAsAUV2::_processAdapterLock.
++struct AdapterLock
++{
++  explicit AdapterLock(std::atomic_flag &f) : flag(f)
++  {
++    while (flag.test_and_set(std::memory_order_acquire))
++    {
++    }
++  }
++  ~AdapterLock()
++  {
++    flag.clear(std::memory_order_release);
++  }
++  std::atomic_flag &flag;
++};
++}  // namespace
++
+ OSStatus WrapAsAUV2::SetParameter(AudioUnitParameterID inID, AudioUnitScope inScope,
+                                   AudioUnitElement inElement, AudioUnitParameterValue inValue,
+                                   UInt32 inBufferOffsetInFrames)
+ {
+   if (inScope == kAudioUnitScope_Global)
+   {
++    AdapterLock lock(_processAdapterLock);
+     if (_processAdapter)
+     {
+       // a parameter has been set.
+@@ -1105,7 +1125,12 @@ void WrapAsAUV2::activateCLAP()
+   if (_plugin)
+   {
+     assert(!_initialized);
+-    if (!_processAdapter) _processAdapter = std::make_unique<Clap::AUv2::ProcessAdapter>();
++    if (!_processAdapter)
++    {
++      auto adapter = std::make_unique<Clap::AUv2::ProcessAdapter>();
++      AdapterLock lock(_processAdapterLock);
++      _processAdapter = std::move(adapter);
++    }
+     auto maxSampleFrames = Base::GetMaxFramesPerSlice();
+     auto minSampleFrames = (maxSampleFrames >= 16) ? 16 : 1;
+     _plugin->setBlockSizes(minSampleFrames, maxSampleFrames);
+@@ -1135,7 +1160,12 @@ void WrapAsAUV2::deactivateCLAP()
+   if (_plugin)
+   {
+     _initialized = false;
+-    _processAdapter.reset();
++    std::unique_ptr<Clap::AUv2::ProcessAdapter> retired;
++    {
++      AdapterLock lock(_processAdapterLock);
++      retired = std::move(_processAdapter);
++    }
++    retired.reset();
+     _plugin->stop_processing();
+     _plugin->deactivate();
+   }

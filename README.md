@@ -150,6 +150,7 @@ plugins/spectrum/
 plugins/scope/
 dev/             developer tools (p31-snapshot)
 cmake/ scripts/  build helpers; bootstrap, validate, package, notices
+patches/         fixes to submodules, applied by scripts/bootstrap.sh (see patches/README.md)
 .github/         CI
 libs/            submodules (CLAP, clap-wrapper, VST3 SDK, AudioUnitSDK, RtAudio, RtMidi, pffft, doctest)
 ```

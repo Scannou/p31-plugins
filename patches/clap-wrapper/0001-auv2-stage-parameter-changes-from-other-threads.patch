@@ -1,0 +1,106 @@
+diff --git a/src/detail/auv2/process.cpp b/src/detail/auv2/process.cpp
+index 6e4c315..f13d632 100644
+--- a/src/detail/auv2/process.cpp
++++ b/src/detail/auv2/process.cpp
+@@ -166,6 +166,11 @@ void ProcessAdapter::setupProcessing(ausdk::AUScope &audioInputs, ausdk::AUScope
+   _out_events.ctx = this;
+ 
+   _gesturedParameters.reserve(8192);
++  while (_pendingParamsLock.test_and_set(std::memory_order_acquire))
++  {
++  }
++  _pendingParams.reserve(1024);
++  _pendingParamsLock.clear(std::memory_order_release);
+ 
+   _activeNotes.reserve(32);
+ }
+@@ -187,8 +192,23 @@ void ProcessAdapter::sortEventIndices()
+             });
+ }
+ 
++void ProcessAdapter::drainPendingParameters()
++{
++  if (_pendingParamsLock.test_and_set(std::memory_order_acquire)) return;  // a writer is busy
++  for (const auto &e : _pendingParams)
++  {
++    if (_events.size() == _events.capacity()) break;  // never reallocate here
++    _eventindices.emplace_back(_events.size());
++    _events.emplace_back(e);
++  }
++  _pendingParams.clear();
++  _pendingParamsLock.clear(std::memory_order_release);
++}
++
+ void ProcessAdapter::process(ProcessData &data)
+ {
++  drainPendingParameters();
++
+   // CLAP requires event times within [0, frames_count); a host stamping
+   // MIDIEventList packets with out-of-range timestamps (e.g. mach host time
+   // instead of sample offsets) would otherwise make plugins that index their
+@@ -802,7 +822,23 @@ void ProcessAdapter::addParameterEvent(const clap_param_info_t &info, double val
+   n.param.channel = -1;
+   n.param.note_id = -1;
+ 
+-  this->_eventindices.emplace_back(this->_events.size());
+-  this->_events.emplace_back(n);
++  // May run on any thread: stage the change for process() (see
++  // _pendingParams), never touching _events here.
++  while (_pendingParamsLock.test_and_set(std::memory_order_acquire))
++  {
++    // the audio thread or another writer holds it for a short copy
++  }
++  bool merged = false;
++  for (auto &e : _pendingParams)
++  {
++    if (e.param.param_id == n.param.param_id && e.header.time == n.header.time)
++    {
++      e.param.value = value;
++      merged = true;
++      break;
++    }
++  }
++  if (!merged && _pendingParams.size() < _pendingParams.capacity()) _pendingParams.emplace_back(n);
++  _pendingParamsLock.clear(std::memory_order_release);
+ }
+ }  // namespace Clap::AUv2
+diff --git a/src/detail/auv2/process.h b/src/detail/auv2/process.h
+index 30186b1..8d63899 100644
+--- a/src/detail/auv2/process.h
++++ b/src/detail/auv2/process.h
+@@ -31,6 +31,7 @@
+ #include "../clap/automation.h"
+ #include "../shared/midi_translation.h"
+ #include "parameter.h"
++#include <atomic>
+ #include <map>
+ 
+ namespace Clap::AUv2
+@@ -127,6 +128,10 @@ class ProcessAdapter
+ 
+   void sortEventIndices();
+ 
++  // moves the parameter changes staged by addParameterEvent into _events
++  // (audio thread, start of process()).
++  void drainPendingParameters();
++
+   bool enqueueOutputEvent(const clap_event_header_t *event);
+ 
+   void processOutputEvents();
+@@ -174,6 +179,16 @@ class ProcessAdapter
+   std::vector<clap_multi_event_t> _events;
+   std::vector<size_t> _eventindices;
+ 
++  // Hosts call AudioUnitSetParameter from any thread (UI, automation, the
++  // render thread) while process() reads and clears _events on the audio
++  // thread. Parameter changes therefore go here first, under a spin lock that
++  // writers hold only for a short copy, and process() moves them into _events
++  // without ever waiting: if a writer holds the lock, they move next cycle.
++  // Preallocated and coalesced per parameter, so it never reallocates; a
++  // parameter's latest value always wins.
++  std::vector<clap_multi_event_t> _pendingParams;
++  std::atomic_flag _pendingParamsLock = ATOMIC_FLAG_INIT;
++
+   // owns the payloads referenced by CLAP_EVENT_MIDI_SYSEX events for the
+   // duration of one process() cycle (clap_event_midi_sysex_t only borrows a
+   // pointer). Reset together with _events at the end of each cycle; buffers
