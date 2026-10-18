@@ -10,7 +10,7 @@ plugins and standalone apps. Ported from the foobar2000 components in
 [fb2k-components-mac-suite](https://github.com/JendaT/fb2k-components-mac-suite).
 Audio passes through untouched, with zero latency.
 
-Status: 0.1.1, macOS 12+ (Apple silicon and Intel). Installers are on the
+Status: 0.1.2, macOS 12+ (Apple silicon and Intel). Installers are on the
 [Releases](https://github.com/Scannou/p31-plugins/releases) page; they are not
 signed yet, and each release's notes explain how to open one.
 
@@ -163,7 +163,7 @@ and pull request; the unsigned package is attached to each run. Pushing a tag
 publishes a GitHub release:
 
 ```sh
-git tag v0.1.1 && git push origin v0.1.1
+git tag v0.1.2 && git push origin v0.1.2
 ```
 
 Without signing secrets the release carries the unsigned package, and its notes

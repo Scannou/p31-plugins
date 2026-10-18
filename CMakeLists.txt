@@ -6,7 +6,7 @@ if (NOT DEFINED CMAKE_OSX_ARCHITECTURES)
     set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "Build architectures")
 endif()
 
-project(p31-plugins VERSION 0.1.1 LANGUAGES C CXX OBJC OBJCXX)
+project(p31-plugins VERSION 0.1.2 LANGUAGES C CXX OBJC OBJCXX)
 
 # SDKs and clap-wrapper build as C++17 (the VST3 wrapper does not compile as
 # C++20). Our own targets opt into C++20 through p31_cxx20() instead, which
