@@ -4,8 +4,9 @@
 //
 //  CLAP plugin shell shared by P31 Spectrum and P31 Scope: one main audio
 //  port pair (mono or stereo), audio passed through untouched with zero
-//  latency, a versioned state blob and a resizable editor. Subclasses add
-//  analysis and the editor's contents.
+//  latency, two parameters (Freeze, Gain), a versioned state blob holding
+//  the settings, and a resizable editor. Subclasses add analysis, their
+//  settings and the editor's contents.
 //
 
 #pragma once
@@ -18,6 +19,8 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <string>
+#include <string_view>
 
 namespace p31 {
 
@@ -30,7 +33,43 @@ public:
 
     const clap_plugin* clapPlugin() const { return &_plugin; }
 
+    // --- Parameters ---
+    //
+    // Both act on the analysis only; the audio always passes through
+    // untouched. Values are read by the editor on the main thread.
+    enum ParamId : clap_id {
+        kParamFreeze = 0,   // 0 / 1: the display holds still
+        kParamGain = 1,     // dB added to the signal before analysis
+        kParamCount = 2,
+    };
+    static constexpr double kGainMinDb = -24.0;
+    static constexpr double kGainMaxDb = 24.0;
+
+    // Any thread.
+    double paramValue(clap_id id) const;
+    bool frozen() const { return paramValue(kParamFreeze) >= 0.5; }
+    float analysisGain() const;   // linear
+
+    // Main thread: the editor changes a parameter, as one gesture.
+    void beginParamEdit(clap_id id);
+    void setParamFromEditor(clap_id id, double value);
+    void endParamEdit(clap_id id);
+
+    // --- Settings ---
+
+    // Main thread. The current settings as text (StateCodec), for presets.
+    std::string settingsText() const { return encodeSettings(); }
+    // Main thread: the editor changed a setting.
+    void settingsEdited();
+    // Plugin name, as in the descriptor.
+    const char* name() const { return _plugin.desc->name; }
+
 protected:
+    // Main thread. Settings to and from text; decodeSettings starts from the
+    // defaults and must leave sanitized settings.
+    virtual std::string encodeSettings() const { return {}; }
+    virtual void decodeSettings(std::string_view text) { (void)text; }
+
     // Audio thread. Called once per block with the input channels, before
     // the audio is passed through. Must not allocate, lock or log.
     virtual void analyze(const float* const* channels, uint32_t channelCount, uint32_t frames) {
@@ -68,6 +107,13 @@ private:
     clap_process_status process(const clap_process* process);
     const void* getExtension(const char* id);
 
+    // params
+    bool paramInfo(uint32_t index, clap_param_info* info) const;
+    bool paramValueToText(clap_id id, double value, char* out, uint32_t size) const;
+    bool paramTextToValue(clap_id id, const char* text, double* value) const;
+    void handleInputEvents(const clap_input_events* in);
+    void emitEditorEvents(const clap_output_events* out);
+
     // audio-ports / configurable-audio-ports
     uint32_t portCount(bool isInput) const;
     bool portInfo(uint32_t index, bool isInput, clap_audio_port_info* info) const;
@@ -96,13 +142,23 @@ private:
     // recording the input: passing audio through would feed back.
     bool _muteOutput = false;
 
+    // Parameter values, and edits from the editor waiting to be reported to
+    // the host from process() or flush(): kEditBegin / kEditValue / kEditEnd.
+    std::atomic<double> _params[kParamCount];
+    std::atomic<uint32_t> _pendingEdits[kParamCount];
+
+    const clap_host_params* _hostParams = nullptr;
+    const clap_host_state* _hostState = nullptr;
+    const clap_host_gui* _hostGui = nullptr;
+
     std::unique_ptr<Editor> _editor;
-    uint32_t _editorWidth = 0;    // 0 until the first editor
+    uint32_t _editorWidth = 0;    // 0 until the first editor or a loaded state
     uint32_t _editorHeight = 0;
 
     static const clap_plugin_audio_ports s_audioPorts;
     static const clap_plugin_configurable_audio_ports s_configurablePorts;
     static const clap_plugin_latency s_latency;
+    static const clap_plugin_params s_params;
     static const clap_plugin_state s_state;
     static const clap_plugin_gui s_gui;
 };

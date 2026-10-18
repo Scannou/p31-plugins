@@ -7,10 +7,16 @@
 
 #include <p31/core/DenormalGuard.h>
 #include <p31/core/PassThrough.h>
+#include <p31/core/PresetStore.h>
+#include <p31/core/StateCodec.h>
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdio>
+#include <cstdlib>
+#include <strings.h>
+#include <vector>
 
 namespace p31 {
 
@@ -22,11 +28,33 @@ namespace {
     constexpr const char* kStandaloneHostName = "CLAP-Wrapper-As-Standalone";
 
     // State blob: magic, format version, payload size (all little endian),
-    // then the payload. Phase 1 has no payload; later versions append fields
-    // and must keep reading every older version.
+    // then the payload. Version 1 had no payload. Version 2's payload is
+    // StateCodec text: editor size, parameter values and every setting;
+    // fields are added as new keys without a version change.
     constexpr std::array<uint8_t, 4> kStateMagic{'P', '3', '1', 'S'};
-    constexpr uint32_t kStateVersion = 1;
+    constexpr uint32_t kStateVersion = 2;
     constexpr uint32_t kMaxStatePayload = 1u << 20;
+
+    constexpr const char* kKeyEditorWidth = "editor_width";
+    constexpr const char* kKeyEditorHeight = "editor_height";
+    constexpr const char* kKeyFreeze = "param.freeze";
+    constexpr const char* kKeyGainCentiDb = "param.gain_cdb";
+
+    // Editor gestures waiting for process() / flush().
+    constexpr uint32_t kEditBegin = 1;
+    constexpr uint32_t kEditValue = 2;
+    constexpr uint32_t kEditEnd = 4;
+
+    struct ParamDef {
+        const char* name;
+        double min, max, defaultValue;
+        clap_param_info_flags flags;
+    };
+    constexpr ParamDef kParams[] = {
+        {"Freeze", 0.0, 1.0, 0.0, CLAP_PARAM_IS_AUTOMATABLE | CLAP_PARAM_IS_STEPPED},
+        {"Gain", PluginBase::kGainMinDb, PluginBase::kGainMaxDb, 0.0, CLAP_PARAM_IS_AUTOMATABLE},
+    };
+    static_assert(std::size(kParams) == PluginBase::kParamCount);
 
     void putU32(uint8_t* p, uint32_t v) {
         for (int i = 0; i < 4; ++i) p[i] = static_cast<uint8_t>(v >> (8 * i));
@@ -73,6 +101,10 @@ PluginBase::PluginBase(const clap_plugin_descriptor* desc, const clap_host* host
     _plugin.process = [](const clap_plugin* p, const clap_process* proc) { return self(p)->process(proc); };
     _plugin.get_extension = [](const clap_plugin* p, const char* id) { return self(p)->getExtension(id); };
     _plugin.on_main_thread = [](const clap_plugin*) {};
+    for (uint32_t i = 0; i < kParamCount; ++i) {
+        _params[i].store(kParams[i].defaultValue);
+        _pendingEdits[i].store(0);
+    }
 }
 
 PluginBase::~PluginBase() = default;
@@ -83,6 +115,12 @@ PluginBase* PluginBase::self(const clap_plugin* plugin) {
 
 bool PluginBase::init() {
     _muteOutput = _host->name != nullptr && std::strcmp(_host->name, kStandaloneHostName) == 0;
+    _hostParams = static_cast<const clap_host_params*>(_host->get_extension(_host, CLAP_EXT_PARAMS));
+    _hostState = static_cast<const clap_host_state*>(_host->get_extension(_host, CLAP_EXT_STATE));
+    _hostGui = static_cast<const clap_host_gui*>(_host->get_extension(_host, CLAP_EXT_GUI));
+    // A new instance starts from the user's saved default, if any. A
+    // project's own state replaces it right after.
+    decodeSettings(PresetStore::forPlugin(name()).loadDefault().value_or(std::string()));
     return true;
 }
 
@@ -102,6 +140,8 @@ void PluginBase::deactivate() {
 
 clap_process_status PluginBase::process(const clap_process* proc) {
     const DenormalGuard denormals;
+    if (proc->in_events) handleInputEvents(proc->in_events);
+    if (proc->out_events) emitEditorEvents(proc->out_events);
     const uint32_t frames = proc->frames_count;
     if (proc->audio_outputs_count == 0) return CLAP_PROCESS_CONTINUE;
 
@@ -128,6 +168,7 @@ const void* PluginBase::getExtension(const char* id) {
     if (std::strcmp(id, CLAP_EXT_AUDIO_PORTS) == 0) return &s_audioPorts;
     if (std::strcmp(id, CLAP_EXT_CONFIGURABLE_AUDIO_PORTS) == 0) return &s_configurablePorts;
     if (std::strcmp(id, CLAP_EXT_LATENCY) == 0) return &s_latency;
+    if (std::strcmp(id, CLAP_EXT_PARAMS) == 0) return &s_params;
     if (std::strcmp(id, CLAP_EXT_STATE) == 0) return &s_state;
     if (std::strcmp(id, CLAP_EXT_GUI) == 0 && hasEditor()) return &s_gui;
     return extension(id);
@@ -191,14 +232,158 @@ const clap_plugin_latency PluginBase::s_latency{
     [](const clap_plugin*) -> uint32_t { return 0; },
 };
 
+#pragma mark - params
+
+double PluginBase::paramValue(clap_id id) const {
+    return id < kParamCount ? _params[id].load(std::memory_order_relaxed) : 0.0;
+}
+
+float PluginBase::analysisGain() const {
+    return static_cast<float>(std::pow(10.0, paramValue(kParamGain) / 20.0));
+}
+
+bool PluginBase::paramInfo(uint32_t index, clap_param_info* info) const {
+    if (index >= kParamCount) return false;
+    const ParamDef& d = kParams[index];
+    *info = clap_param_info{};
+    info->id = index;
+    info->flags = d.flags;
+    info->cookie = nullptr;
+    std::snprintf(info->name, sizeof(info->name), "%s", d.name);
+    info->module[0] = '\0';
+    info->min_value = d.min;
+    info->max_value = d.max;
+    info->default_value = d.defaultValue;
+    return true;
+}
+
+bool PluginBase::paramValueToText(clap_id id, double value, char* out, uint32_t size) const {
+    if (id >= kParamCount || size == 0) return false;
+    if (id == kParamFreeze) std::snprintf(out, size, "%s", value >= 0.5 ? "On" : "Off");
+    else std::snprintf(out, size, "%+.1f dB", value);
+    return true;
+}
+
+bool PluginBase::paramTextToValue(clap_id id, const char* text, double* value) const {
+    if (id >= kParamCount || text == nullptr) return false;
+    if (id == kParamFreeze) {
+        if (strcasecmp(text, "on") == 0) { *value = 1.0; return true; }
+        if (strcasecmp(text, "off") == 0) { *value = 0.0; return true; }
+    }
+    char* end = nullptr;
+    const double v = std::strtod(text, &end);
+    if (end == text) return false;
+    *value = std::clamp(v, kParams[id].min, kParams[id].max);
+    if (id == kParamFreeze) *value = *value >= 0.5 ? 1.0 : 0.0;
+    return true;
+}
+
+// Audio thread or [main-thread] flush: no allocation.
+void PluginBase::handleInputEvents(const clap_input_events* in) {
+    const uint32_t count = in->size(in);
+    for (uint32_t i = 0; i < count; ++i) {
+        const clap_event_header* h = in->get(in, i);
+        if (h->space_id != CLAP_CORE_EVENT_SPACE_ID || h->type != CLAP_EVENT_PARAM_VALUE) continue;
+        const auto* ev = reinterpret_cast<const clap_event_param_value*>(h);
+        if (ev->param_id >= kParamCount) continue;
+        const ParamDef& d = kParams[ev->param_id];
+        _params[ev->param_id].store(std::clamp(ev->value, d.min, d.max), std::memory_order_relaxed);
+    }
+}
+
+void PluginBase::emitEditorEvents(const clap_output_events* out) {
+    for (clap_id id = 0; id < kParamCount; ++id) {
+        const uint32_t edits = _pendingEdits[id].exchange(0, std::memory_order_acq_rel);
+        if (edits == 0) continue;
+        const auto gesture = [&](uint16_t type) {
+            clap_event_param_gesture ev{};
+            ev.header = {sizeof(ev), 0, CLAP_CORE_EVENT_SPACE_ID, type, 0};
+            ev.param_id = id;
+            out->try_push(out, &ev.header);
+        };
+        if (edits & kEditBegin) gesture(CLAP_EVENT_PARAM_GESTURE_BEGIN);
+        if (edits & kEditValue) {
+            clap_event_param_value ev{};
+            ev.header = {sizeof(ev), 0, CLAP_CORE_EVENT_SPACE_ID, CLAP_EVENT_PARAM_VALUE, 0};
+            ev.param_id = id;
+            ev.cookie = nullptr;
+            ev.note_id = -1;
+            ev.port_index = -1;
+            ev.channel = -1;
+            ev.key = -1;
+            ev.value = paramValue(id);
+            out->try_push(out, &ev.header);
+        }
+        if (edits & kEditEnd) gesture(CLAP_EVENT_PARAM_GESTURE_END);
+    }
+}
+
+void PluginBase::beginParamEdit(clap_id id) {
+    if (id >= kParamCount) return;
+    _pendingEdits[id].fetch_or(kEditBegin, std::memory_order_acq_rel);
+    if (_hostParams) _hostParams->request_flush(_host);
+}
+
+void PluginBase::setParamFromEditor(clap_id id, double value) {
+    if (id >= kParamCount) return;
+    const ParamDef& d = kParams[id];
+    _params[id].store(std::clamp(value, d.min, d.max), std::memory_order_relaxed);
+    _pendingEdits[id].fetch_or(kEditValue, std::memory_order_acq_rel);
+    if (_hostParams) _hostParams->request_flush(_host);
+}
+
+void PluginBase::endParamEdit(clap_id id) {
+    if (id >= kParamCount) return;
+    _pendingEdits[id].fetch_or(kEditEnd, std::memory_order_acq_rel);
+    if (_hostParams) _hostParams->request_flush(_host);
+}
+
+const clap_plugin_params PluginBase::s_params{
+    [](const clap_plugin*) -> uint32_t { return kParamCount; },
+    [](const clap_plugin* p, uint32_t index, clap_param_info* info) { return self(p)->paramInfo(index, info); },
+    [](const clap_plugin* p, clap_id id, double* value) {
+        if (id >= kParamCount) return false;
+        *value = self(p)->paramValue(id);
+        return true;
+    },
+    [](const clap_plugin* p, clap_id id, double value, char* out, uint32_t size) {
+        return self(p)->paramValueToText(id, value, out, size);
+    },
+    [](const clap_plugin* p, clap_id id, const char* text, double* value) {
+        return self(p)->paramTextToValue(id, text, value);
+    },
+    [](const clap_plugin* p, const clap_input_events* in, const clap_output_events* out) {
+        PluginBase* s = self(p);
+        if (in) s->handleInputEvents(in);
+        if (out) s->emitEditorEvents(out);
+    },
+};
+
+#pragma mark - settings
+
+void PluginBase::settingsEdited() {
+    if (_hostState) _hostState->mark_dirty(_host);
+}
+
 #pragma mark - state
 
 bool PluginBase::saveState(const clap_ostream* stream) {
+    StateWriter w;
+    if (_editorWidth > 0 && _editorHeight > 0) {
+        w.put(kKeyEditorWidth, _editorWidth);
+        w.put(kKeyEditorHeight, _editorHeight);
+    }
+    w.put(kKeyFreeze, frozen() ? 1 : 0);
+    w.put(kKeyGainCentiDb, std::lround(paramValue(kParamGain) * 100.0));
+    const std::string payload = w.text() + encodeSettings();
+    if (payload.size() > kMaxStatePayload) return false;
+
     std::array<uint8_t, 12> header{};
     std::copy(kStateMagic.begin(), kStateMagic.end(), header.begin());
     putU32(header.data() + 4, kStateVersion);
-    putU32(header.data() + 8, 0);  // payload size
-    return writeAll(stream, header.data(), header.size());
+    putU32(header.data() + 8, static_cast<uint32_t>(payload.size()));
+    return writeAll(stream, header.data(), header.size()) &&
+           writeAll(stream, reinterpret_cast<const uint8_t*>(payload.data()), payload.size());
 }
 
 bool PluginBase::loadState(const clap_istream* stream) {
@@ -209,8 +394,33 @@ bool PluginBase::loadState(const clap_istream* stream) {
     const uint32_t payload = getU32(header.data() + 8);
     if (version == 0 || version > kStateVersion) return false;
     if (payload > kMaxStatePayload) return false;
-    // Nothing to read yet in version 1.
-    return payload == 0;
+    if (version == 1 && payload != 0) return false;
+
+    std::vector<uint8_t> bytes(payload);
+    if (payload > 0 && !readAll(stream, bytes.data(), bytes.size())) return false;
+    const std::string_view text(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+    const StateReader r(text);
+
+    // Parameters: missing ones return to their defaults.
+    int64_t v = 0;
+    _params[kParamFreeze].store(r.get(kKeyFreeze, v) && v == 1 ? 1.0 : 0.0);
+    const double gain = r.get(kKeyGainCentiDb, v) ? static_cast<double>(v) / 100.0 : 0.0;
+    _params[kParamGain].store(std::clamp(gain, kGainMinDb, kGainMaxDb));
+    if (_hostParams) _hostParams->rescan(_host, CLAP_PARAM_RESCAN_VALUES);
+
+    int64_t w = 0, h = 0;
+    if (r.get(kKeyEditorWidth, w) && r.get(kKeyEditorHeight, h) && w > 0 && h > 0 && w < 100000 && h < 100000) {
+        uint32_t width = static_cast<uint32_t>(w), height = static_cast<uint32_t>(h);
+        guiClampSize(width, height);
+        const bool resize = _editor && (width != _editorWidth || height != _editorHeight);
+        _editorWidth = width;
+        _editorHeight = height;
+        if (resize && _hostGui && _hostGui->request_resize(_host, width, height)) _editor->setSize(width, height);
+    }
+
+    decodeSettings(text);
+    if (_editor) _editor->settingsChanged();
+    return true;
 }
 
 const clap_plugin_state PluginBase::s_state{

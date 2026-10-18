@@ -7,6 +7,8 @@
 
 #include "ScopeEditor.h"
 
+#include <p31/core/StateCodec.h>
+
 namespace {
     const char* const kFeatures[] = {
         CLAP_PLUGIN_FEATURE_AUDIO_EFFECT,
@@ -38,6 +40,21 @@ ScopePlugin::ScopePlugin(const clap_host* host) : PluginBase(&descriptor, host),
 
 void ScopePlugin::analyze(const float* const* channels, uint32_t channelCount, uint32_t frames) {
     _ring.write(channels, channelCount, frames);
+}
+
+void ScopePlugin::setSettings(const p31::scope::ScopeSettings& settings) {
+    _settings = settings.sanitized();
+    settingsEdited();
+}
+
+std::string ScopePlugin::encodeSettings() const {
+    return p31::encodeSettings(_settings);
+}
+
+void ScopePlugin::decodeSettings(std::string_view text) {
+    p31::scope::ScopeSettings s;
+    p31::decodeSettings(text, s);
+    _settings = s.sanitized();
 }
 
 std::unique_ptr<p31::Editor> ScopePlugin::createEditor(uint32_t width, uint32_t height) {

@@ -22,6 +22,9 @@ public:
     // New size in points.
     virtual void setSize(uint32_t width, uint32_t height) = 0;
     virtual void setVisible(bool visible) = 0;
+    // The plugin's settings were replaced (state loaded, preset applied):
+    // re-read them.
+    virtual void settingsChanged() {}
 };
 
 // Editor size in points.
