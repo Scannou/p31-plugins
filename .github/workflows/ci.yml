@@ -1,0 +1,137 @@
+# Build, test and validate every push; package every build. A v* tag (that
+# matches the project version) also signs, notarizes and publishes a GitHub
+# release. Signing setup: see "Releases" in README.md.
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PLUGINVAL_VERSION: v1.0.4
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tools
+        run: brew install ninja
+
+      - name: Submodules and clap-validator
+        run: scripts/bootstrap.sh
+
+      - name: Tag matches the project version
+        if: env.RELEASE == 'true'
+        run: |
+          version=$(sed -n 's/^project(p31-plugins VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
+          if [[ "$GITHUB_REF_NAME" != "v$version" ]]; then
+            echo "tag $GITHUB_REF_NAME does not match project version $version" >&2
+            exit 1
+          fi
+
+      - name: Build (Release, universal)
+        run: |
+          cmake --preset release
+          cmake --build --preset release
+
+      - name: Unit tests
+        run: ctest --test-dir build/release --output-on-failure
+
+      - name: Install pluginval
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/pluginval.zip" \
+            "https://github.com/Tracktion/pluginval/releases/download/${PLUGINVAL_VERSION}/pluginval_macOS.zip"
+          unzip -q "$RUNNER_TEMP/pluginval.zip" -d "$RUNNER_TEMP/pluginval"
+          echo "PLUGINVAL=$RUNNER_TEMP/pluginval/pluginval.app/Contents/MacOS/pluginval" >> "$GITHUB_ENV"
+
+      - name: Validate (clap-validator, VST3 validator, auval, pluginval)
+        run: |
+          # auval and pluginval's AU test look in the user's Components folder.
+          mkdir -p ~/Library/Audio/Plug-Ins/Components
+          for c in build/release/plugins/*.component; do
+            ditto "$c" ~/Library/Audio/Plug-Ins/Components/"$(basename "$c")"
+          done
+          scripts/validate.sh build/release
+
+      - name: Package (unsigned)
+        if: env.RELEASE != 'true'
+        run: scripts/package.sh --skip-build
+
+      - name: Import signing certificates
+        if: env.RELEASE == 'true'
+        env:
+          APP_P12: ${{ secrets.DEVELOPER_ID_APP_P12_BASE64 }}
+          INSTALLER_P12: ${{ secrets.DEVELOPER_ID_INSTALLER_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password=$(uuidgen)
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          for cert in APP_P12 INSTALLER_P12; do
+            echo "${!cert}" | base64 --decode > "$RUNNER_TEMP/$cert.p12"
+            security import "$RUNNER_TEMP/$cert.p12" -k "$keychain" -P "$P12_PASSWORD" \
+              -T /usr/bin/codesign -T /usr/bin/productbuild -T /usr/bin/productsign -T /usr/bin/pkgbuild
+            rm "$RUNNER_TEMP/$cert.p12"
+          done
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          echo "SIGNING_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
+
+      - name: Package, sign and notarize
+        if: env.RELEASE == 'true'
+        env:
+          P31_SIGN_ID: ${{ vars.P31_SIGN_ID }}
+          P31_INSTALLER_ID: ${{ vars.P31_INSTALLER_ID }}
+          NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8_BASE64 }}
+          P31_NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          P31_NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER }}
+        run: |
+          export P31_NOTARY_KEY="$RUNNER_TEMP/notary.p8"
+          echo "$NOTARY_KEY_P8" | base64 --decode > "$P31_NOTARY_KEY"
+          scripts/package.sh --skip-build
+          rm "$P31_NOTARY_KEY"
+
+      - name: Remove signing keychain
+        if: always() && env.SIGNING_KEYCHAIN != ''
+        run: security delete-keychain "$SIGNING_KEYCHAIN"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: P31-Plugins
+          path: dist/*.pkg
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: P31-Plugins
+          path: dist
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.pkg --repo "$GITHUB_REPOSITORY" \
+            --title "P31 Plugins ${GITHUB_REF_NAME#v}" --generate-notes
