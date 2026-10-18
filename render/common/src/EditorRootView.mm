@@ -12,8 +12,9 @@
 #include <cmath>
 
 namespace {
-    constexpr CGFloat kToolbarInset = 6.0;
-    constexpr CGFloat kButtonSize = 24.0;
+    constexpr CGFloat kToolbarInset = 8.0;
+    constexpr CGFloat kButtonSize = 30.0;   // each button a rounded chip
+    constexpr CGFloat kButtonGap = 6.0;
     constexpr NSTimeInterval kFade = 0.15;
     constexpr CGFloat kGripSize = 16.0;
 }
@@ -81,7 +82,9 @@ namespace {
 @implementation P31EditorRootView {
     NSView *_content;
     P31SettingsPanel *_panel;
-    NSVisualEffectView *_toolbar;
+    NSView *_toolbar;
+    NSVisualEffectView *_freezeChip;
+    NSVisualEffectView *_settingsChip;
     NSButton *_freezeButton;
     NSButton *_settingsButton;
     P31ResizeGrip *_grip;
@@ -111,18 +114,15 @@ namespace {
     _content.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
     [self addSubview:_content];
 
-    _toolbar = [[NSVisualEffectView alloc] initWithFrame:NSZeroRect];
-    _toolbar.material = NSVisualEffectMaterialHUDWindow;
-    _toolbar.blendingMode = NSVisualEffectBlendingModeWithinWindow;
-    _toolbar.state = NSVisualEffectStateActive;
-    _toolbar.wantsLayer = YES;
-    _toolbar.layer.cornerRadius = 6.0;
-    _toolbar.layer.masksToBounds = YES;
+    _toolbarInsetRight = kToolbarInset;
+    _toolbar = [[NSView alloc] initWithFrame:NSZeroRect];
     _toolbar.alphaValue = 0.0;
     _freezeButton = [self toolbarButton:@"snowflake" tip:@"Freeze the display" action:@selector(freezePressed:)];
     _settingsButton = [self toolbarButton:@"slider.horizontal.3" tip:@"Settings" action:@selector(settingsPressed:)];
-    [_toolbar addSubview:_freezeButton];
-    [_toolbar addSubview:_settingsButton];
+    _freezeChip = [self chipWithButton:_freezeButton];
+    _settingsChip = [self chipWithButton:_settingsButton];
+    [_toolbar addSubview:_freezeChip];
+    [_toolbar addSubview:_settingsChip];
     [self addSubview:_toolbar];
 
     _panel = [[P31SettingsPanel alloc] initWithFrame:self.bounds title:title];
@@ -153,6 +153,28 @@ namespace {
     return b;
 }
 
+// A rounded, thinly outlined square behind a toolbar button.
+- (NSVisualEffectView *)chipWithButton:(NSButton *)button {
+    NSVisualEffectView *chip = [[NSVisualEffectView alloc] initWithFrame:NSMakeRect(0, 0, kButtonSize, kButtonSize)];
+    chip.material = NSVisualEffectMaterialHUDWindow;
+    chip.blendingMode = NSVisualEffectBlendingModeWithinWindow;
+    chip.state = NSVisualEffectStateActive;
+    chip.wantsLayer = YES;
+    chip.layer.cornerRadius = 7.0;
+    chip.layer.masksToBounds = YES;
+    chip.layer.borderWidth = 1.0;
+    chip.layer.borderColor = [NSColor colorWithWhite:1.0 alpha:0.14].CGColor;
+    button.frame = chip.bounds;
+    button.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    [chip addSubview:button];
+    return chip;
+}
+
+- (void)setToolbarInsetRight:(CGFloat)inset {
+    _toolbarInsetRight = inset;
+    [self setNeedsLayout:YES];
+}
+
 - (NSView *)content { return _content; }
 - (P31SettingsPanel *)settingsPanel { return _panel; }
 - (BOOL)settingsVisible { return !_panel.hidden; }
@@ -167,11 +189,11 @@ namespace {
 - (void)layout {
     [super layout];
     const NSRect b = self.bounds;
-    const CGFloat w = 2 * kButtonSize + 6.0, h = kButtonSize + 4.0;
+    const CGFloat w = 2 * kButtonSize + kButtonGap, h = kButtonSize;
     // Top right; this view is not flipped.
-    _toolbar.frame = NSMakeRect(NSMaxX(b) - kToolbarInset - w, NSMaxY(b) - kToolbarInset - h, w, h);
-    _freezeButton.frame = NSMakeRect(2.0, 2.0, kButtonSize, kButtonSize);
-    _settingsButton.frame = NSMakeRect(4.0 + kButtonSize, 2.0, kButtonSize, kButtonSize);
+    _toolbar.frame = NSMakeRect(NSMaxX(b) - _toolbarInsetRight - w, NSMaxY(b) - kToolbarInset - h, w, h);
+    _freezeChip.frame = NSMakeRect(0.0, 0.0, kButtonSize, kButtonSize);
+    _settingsChip.frame = NSMakeRect(kButtonSize + kButtonGap, 0.0, kButtonSize, kButtonSize);
     _grip.frame = NSMakeRect(NSMaxX(b) - kGripSize, 0.0, kGripSize, kGripSize);
     [self.window invalidateCursorRectsForView:_grip];
 }

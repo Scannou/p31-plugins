@@ -88,6 +88,8 @@ public:
         const NSRect frame = NSMakeRect(0, 0, width, height);
         _view = [[P31SpectrumView alloc] initWithFrame:frame];
         _root = [[P31EditorRootView alloc] initWithFrame:frame content:_view title:@"Spectrum"];
+        // Left of the dB label column.
+        _root.toolbarInsetRight = 50.0;
         [_root setVersion:@P31_VERSION description:@"Real-time spectrum analyzer" url:@P31_PROJECT_URL];
 
         SpectrumEditor* editor = this;

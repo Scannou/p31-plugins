@@ -25,6 +25,9 @@ NS_ASSUME_NONNULL_BEGIN
 // Version ("0.1.0"), one-line description and project page, for the
 // settings header and the About dialog.
 - (void)setVersion:(NSString *)version description:(NSString *)description url:(NSString *)url;
+// Distance of the toolbar from the right edge, to keep it clear of labels
+// the content draws there.
+@property (nonatomic) CGFloat toolbarInsetRight;
 // The brand color per appearance (ARGB): the theme's main color, used for
 // the lockup and the About mark.
 - (void)setBrandLightColor:(uint32_t)light darkColor:(uint32_t)dark;
