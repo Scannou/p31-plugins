@@ -12,6 +12,8 @@
 //  state before the editor opens. With "settings", P31_SELECT=<item title>
 //  picks that item in the first settings pop-up that has it, as a click
 //  would. P31_DUMP_STATE=1 prints the saved state's text at the end.
+//  P31_DRAG=dx,dy drags the editor's resize grip by that many points (right,
+//  down); the host side resizes the window like a DAW does.
 //  signals: mix (default), mono, left, wide, antiphase, silence,
 //           sine (1 kHz at -6 dBFS), tones (100 Hz / 1 kHz / 10 kHz at -12 dBFS),
 //           white (white noise at -20 dBFS RMS)
@@ -39,9 +41,29 @@ constexpr double kSampleRate = 48000.0;
 constexpr uint32_t kBlock = 512;
 constexpr double kPi = 3.14159265358979323846;
 
+NSWindow* g_window = nil;
+
+// Host side of plugin-initiated resizing: grow the window's content area
+// keeping its top-left corner, as DAWs do.
+const clap_host_gui kHostGui{
+    [](const clap_host*) {},
+    [](const clap_host*, uint32_t width, uint32_t height) {
+        if (!g_window) return false;
+        const NSRect content = [g_window contentRectForFrameRect:g_window.frame];
+        const NSRect next = NSMakeRect(content.origin.x, NSMaxY(content) - height, width, height);
+        [g_window setFrame:[g_window frameRectForContentRect:next] display:YES];
+        return true;
+    },
+    [](const clap_host*) { return false; },
+    [](const clap_host*) { return false; },
+    [](const clap_host*, bool) {},
+};
+
 const clap_host kHost{
     CLAP_VERSION_INIT, nullptr, "p31-snapshot", "P31", "", "0",
-    [](const clap_host*, const char*) -> const void* { return nullptr; },
+    [](const clap_host*, const char* id) -> const void* {
+        return std::strcmp(id, CLAP_EXT_GUI) == 0 ? &kHostGui : nullptr;
+    },
     [](const clap_host*) {},
     [](const clap_host*) {},
     [](const clap_host*) {},
@@ -124,6 +146,42 @@ NSPopUpButton* findPopupWithItem(NSView* view, NSString* title) {
     return nil;
 }
 
+NSView* findViewOfClass(NSView* view, NSString* prefix) {
+    if ([NSStringFromClass([view class]) hasPrefix:prefix]) return view;
+    for (NSView* sub in view.subviews) {
+        if (NSView* found = findViewOfClass(sub, prefix)) return found;
+    }
+    return nil;
+}
+
+// Press on the editor's resize grip and drag it by (dx, dy) points in steps.
+bool dragGrip(NSWindow* window, double dx, double dy) {
+    NSView* grip = findViewOfClass(window.contentView, @"P31ResizeGrip");
+    if (!grip) return false;
+    const NSPoint centre = NSMakePoint(NSMidX(grip.bounds), NSMidY(grip.bounds));
+    const NSPoint start = [window convertPointToScreen:[grip convertPoint:centre toView:nil]];
+    const auto event = [&](NSEventType type, NSPoint screen) {
+        return [NSEvent mouseEventWithType:type
+                                  location:[window convertPointFromScreen:screen]
+                             modifierFlags:0
+                                 timestamp:NSProcessInfo.processInfo.systemUptime
+                              windowNumber:window.windowNumber
+                                   context:nil
+                               eventNumber:0
+                                clickCount:1
+                                  pressure:1.0f];
+    };
+    [grip mouseDown:event(NSEventTypeLeftMouseDown, start)];
+    constexpr int kSteps = 10;
+    for (int i = 1; i <= kSteps; ++i) {
+        const NSPoint p = NSMakePoint(start.x + dx * i / kSteps, start.y - dy * i / kSteps);
+        [grip mouseDragged:event(NSEventTypeLeftMouseDragged, p)];
+        [[NSRunLoop mainRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.02]];
+    }
+    [grip mouseUp:event(NSEventTypeLeftMouseUp, NSMakePoint(start.x + dx, start.y - dy))];
+    return true;
+}
+
 std::string saveStateText(const clap_plugin* plugin) {
     auto* state = static_cast<const clap_plugin_state*>(plugin->get_extension(plugin, CLAP_EXT_STATE));
     std::string bytes;
@@ -196,6 +254,7 @@ int main(int argc, const char* argv[]) {
                                                          backing:NSBackingStoreBuffered
                                                            defer:NO];
         window.title = @"p31-snapshot";
+        g_window = window;
         window.releasedWhenClosed = NO;
         clap_window cw{CLAP_WINDOW_API_COCOA, {}};
         cw.cocoa = (__bridge void*)window.contentView;
@@ -253,6 +312,13 @@ int main(int argc, const char* argv[]) {
             plugin->stop_processing(plugin);
         });
 
+        if (const char* drag = std::getenv("P31_DRAG")) {
+            double dx = 0, dy = 0;
+            if (std::sscanf(drag, "%lf,%lf", &dx, &dy) != 2 || !dragGrip(window, dx, dy)) {
+                std::fprintf(stderr, "drag failed\n");
+                return 1;
+            }
+        }
         [[NSRunLoop mainRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:seconds]];
         const bool ok = writePng(window.contentView, outPath);
 

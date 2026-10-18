@@ -30,6 +30,8 @@ installer once signing credentials are set up (see Releases).
   (±24 dB) changes the level the analyzer sees. Audio always passes through
   untouched.
 - **Appearance**: follow the system, or fixed light or dark per instance.
+- **Size**: drag the grip in the bottom-right corner. The size is saved with
+  the project.
 
 ## Install
 
