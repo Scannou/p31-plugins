@@ -19,3 +19,6 @@
 [submodule "libs/doctest"]
 	path = libs/doctest
 	url = https://github.com/doctest/doctest.git
+[submodule "libs/pffft"]
+	path = libs/pffft
+	url = https://github.com/marton78/pffft.git
