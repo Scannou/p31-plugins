@@ -91,6 +91,7 @@ namespace {
     NSString *_title;
     NSString *_version;
     NSString *_description;
+    NSString *_url;
     uint32_t _brandLight, _brandDark;
 }
 
@@ -101,6 +102,7 @@ namespace {
     _title = [title copy];
     _version = @"";
     _description = @"";
+    _url = @"";
     _brandLight = 0xFF1B8A3A;
     _brandDark = 0xFF4CFF7C;
 
@@ -254,9 +256,10 @@ namespace {
 
 #pragma mark - Brand
 
-- (void)setVersion:(NSString *)version description:(NSString *)description {
+- (void)setVersion:(NSString *)version description:(NSString *)description url:(NSString *)url {
     _version = [version copy];
     _description = [description copy];
+    _url = [url copy];
     _panel.version = [@"v" stringByAppendingString:version];
 }
 
@@ -271,6 +274,7 @@ namespace {
     info.name = std::string("P31 ") + _title.UTF8String;
     info.version = _version.UTF8String;
     info.description = _description.UTF8String;
+    info.url = _url.UTF8String;
     info.lightColor = _brandLight;
     info.darkColor = _brandDark;
     p31::ui::showAbout(info, self);

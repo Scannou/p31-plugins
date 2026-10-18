@@ -7,6 +7,7 @@ target_compile_options(p31-warnings INTERFACE
 
 # Shown as the creator/manufacturer in hosts (CLAP vendor, VST3 vendor, AU name).
 set(P31_VENDOR "P31")
+set(P31_PROJECT_URL "https://github.com/Scannou/p31-plugins")
 
 # Compile a target of ours as C++20 without exporting the requirement.
 function(p31_cxx20 target)
@@ -37,6 +38,7 @@ function(p31_add_plugin)
         P31_PLUGIN_NAME="${P_DISPLAY_NAME}"
         P31_VERSION="${PROJECT_VERSION}"
         P31_VENDOR="${P31_VENDOR}"
+        P31_PROJECT_URL="${P31_PROJECT_URL}"
     )
 
     make_clapfirst_plugins(

@@ -42,11 +42,13 @@ struct AboutInfo {
     std::string name;          // "P31 Spectrum"
     std::string version;       // "0.1.0"
     std::string description;   // one line
+    std::string url;           // project page, shown as a link; empty for none
     uint32_t lightColor = 0xFF1B8A3A, darkColor = 0xFF4CFF7C;   // the mark, ARGB
 };
 
-// The About dialog: the P31 mark, name, version, description and license,
-// with a button for the third-party notices when the bundle carries them.
+// The About dialog: the P31 mark, name, version, description, license and a
+// link to the project page, with a button for the third-party notices when
+// the bundle carries them.
 void showAbout(const AboutInfo& info, NSView* anchor);
 
 } // namespace p31::ui

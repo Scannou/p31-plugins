@@ -22,9 +22,9 @@ NS_ASSUME_NONNULL_BEGIN
 // `title` is the plugin's name after the brand ("Spectrum").
 - (instancetype)initWithFrame:(NSRect)frame content:(NSView *)content title:(NSString *)title;
 
-// Version ("0.1.0") and one-line description, for the settings header and
-// the About dialog.
-- (void)setVersion:(NSString *)version description:(NSString *)description;
+// Version ("0.1.0"), one-line description and project page, for the
+// settings header and the About dialog.
+- (void)setVersion:(NSString *)version description:(NSString *)description url:(NSString *)url;
 // The brand color per appearance (ARGB): the theme's main color, used for
 // the lockup and the About mark.
 - (void)setBrandLightColor:(uint32_t)light darkColor:(uint32_t)dark;

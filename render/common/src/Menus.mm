@@ -118,6 +118,26 @@ void showAbout(const AboutInfo& info, NSView* anchor) {
     alert.messageText = str(info.name);
     alert.informativeText = [NSString stringWithFormat:@"Version %@\n%@\n\nCopyright \u00A9 2026 Scannou. MIT License.",
                                                        str(info.version), str(info.description)];
+    if (!info.url.empty()) {
+        // Shown without the scheme; clicking opens the page.
+        NSString* url = str(info.url);
+        NSString* shown = [[url stringByReplacingOccurrencesOfString:@"https://" withString:@""]
+                              stringByReplacingOccurrencesOfString:@"http://" withString:@""];
+        NSMutableParagraphStyle* centred = [[NSMutableParagraphStyle alloc] init];
+        centred.alignment = NSTextAlignmentCenter;
+        NSTextField* link = [NSTextField labelWithAttributedString:
+            [[NSAttributedString alloc] initWithString:shown
+                                            attributes:@{
+                                                NSLinkAttributeName: [NSURL URLWithString:url],
+                                                NSFontAttributeName: [NSFont systemFontOfSize:NSFont.smallSystemFontSize],
+                                                NSParagraphStyleAttributeName: centred,
+                                            }]];
+        // Links in a label only react when it is selectable with attributes.
+        link.selectable = YES;
+        link.allowsEditingTextAttributes = YES;
+        link.frame = NSMakeRect(0, 0, 220, 18);
+        alert.accessoryView = link;
+    }
     [alert addButtonWithTitle:@"OK"];
     // Packaged builds carry the notices in the bundle (scripts/package.sh).
     NSBundle* bundle = [NSBundle bundleForClass:[P31MenuItem class]];
