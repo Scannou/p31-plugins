@@ -9,9 +9,9 @@ Audio analyzer plugins for macOS, ported from the foobar2000 components in
 Both are CLAP plugins, wrapped by [clap-wrapper](https://github.com/free-audio/clap-wrapper)
 into VST3, AUv2 and a standalone app. Audio passes through untouched with zero latency.
 
-Status: phase 5. Both plugins are feature complete for macOS: settings page,
-presets, settings saved with the project. CI, signing and an installer come in
-phase 6.
+Status: phase 6. Both plugins are feature complete for macOS (settings page,
+presets, settings saved with the project), with CI and a signed, notarized
+installer once signing credentials are set up (see Releases).
 
 - P31 Scope: goniometer / Lissajous, afterglow, tri-band correlation meter.
 - P31 Spectrum: overlapping windowed FFT (vDSP, pffft fallback), log /
@@ -30,6 +30,21 @@ phase 6.
   (±24 dB) changes the level the analyzer sees. Audio always passes through
   untouched.
 - **Appearance**: follow the system, or fixed light or dark per instance.
+
+## Install
+
+Run `P31-Plugins-<version>.pkg` (from the GitHub release, or `scripts/package.sh`).
+"Customize" picks the formats:
+
+| Choice | Installs to |
+|---|---|
+| CLAP | `/Library/Audio/Plug-Ins/CLAP` |
+| VST3 | `/Library/Audio/Plug-Ins/VST3` |
+| Audio Unit | `/Library/Audio/Plug-Ins/Components` |
+| Standalone apps | `/Applications` |
+
+To uninstall, delete `P31 Spectrum.*` and `P31 Scope.*` from those folders, then
+`pkgutil --pkgs | grep com.scannou.p31 | xargs -n1 sudo pkgutil --forget`.
 
 ## Requirements
 
@@ -84,6 +99,45 @@ scripts/validate.sh [build-dir]
 Runs clap-validator, the Steinberg VST3 validator, `auval -strict` and pluginval
 (strictness 10, including GUI tests) against both plugins.
 
+## Releases
+
+```sh
+scripts/package.sh            # Release build -> dist/P31-Plugins-<version>.pkg
+```
+
+Without signing variables the bundles are ad-hoc signed and the package is
+unsigned: fine on this Mac, not for anyone else. For a distributable package:
+
+1. In the Apple Developer account, create a **Developer ID Application** and a
+   **Developer ID Installer** certificate and install both in the login keychain.
+2. Store notarization credentials once:
+   `xcrun notarytool store-credentials p31-notary --apple-id <id> --team-id <TEAMID>`
+   (with an app-specific password).
+3. Build:
+   ```sh
+   P31_SIGN_ID="Developer ID Application: <Name> (<TEAMID>)" \
+   P31_INSTALLER_ID="Developer ID Installer: <Name> (<TEAMID>)" \
+   P31_NOTARY_PROFILE=p31-notary scripts/package.sh
+   ```
+
+The package is signed, notarized and stapled.
+
+CI (`.github/workflows/ci.yml`) builds, tests, validates and packages every push
+and pull request; the unsigned package is attached to each run. Pushing a tag
+`v<version>` (matching `project(... VERSION ...)` in CMakeLists.txt) also signs,
+notarizes and publishes a GitHub release. It needs these repository settings:
+
+| Kind | Name | Value |
+|---|---|---|
+| Variable | `P31_SIGN_ID` | `Developer ID Application: <Name> (<TEAMID>)` |
+| Variable | `P31_INSTALLER_ID` | `Developer ID Installer: <Name> (<TEAMID>)` |
+| Secret | `DEVELOPER_ID_APP_P12_BASE64` | `base64 -i app.p12` of the exported certificate + key |
+| Secret | `DEVELOPER_ID_INSTALLER_P12_BASE64` | the same for the installer certificate |
+| Secret | `P12_PASSWORD` | password of both .p12 files |
+| Secret | `NOTARY_KEY_P8_BASE64` | `base64 -i AuthKey_XXXX.p8` (App Store Connect API key, Developer role) |
+| Secret | `NOTARY_KEY_ID` | the key's ID |
+| Secret | `NOTARY_ISSUER` | the issuer ID |
+
 ## Layout
 
 ```
@@ -93,7 +147,8 @@ plugins/common/  shared CLAP shell (ports, state, pass-through, editor hosting)
 plugins/spectrum/
 plugins/scope/
 dev/             developer tools (p31-snapshot)
-cmake/ scripts/
+cmake/ scripts/  build helpers; bootstrap, validate, package, notices
+.github/         CI
 libs/            submodules (CLAP, clap-wrapper, VST3 SDK, AudioUnitSDK, RtAudio, RtMidi, pffft, doctest)
 ```
 
@@ -102,4 +157,6 @@ libs/            submodules (CLAP, clap-wrapper, VST3 SDK, AudioUnitSDK, RtAudio
 MIT, see [LICENSE](LICENSE). Bundled SDKs: CLAP, clap-wrapper and the VST3 SDK (3.8+)
 are MIT; Apple's AudioUnitSDK is Apache 2.0; RtAudio and RtMidi use MIT-style licenses;
 pffft uses the BSD-style FFTPACK license; doctest (tests only) is MIT.
-Shipping binaries must include their notices (handled in phase 6).
+[THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt) (regenerate with
+`scripts/notices.sh` after updating a submodule) ships inside every bundle and
+in the installer.
