@@ -13,4 +13,4 @@ class SpectrumPlugin;
 
 // The spectrum's editor (SpectrumEditor.mm). Kept behind a factory so the
 // plugin code stays plain C++.
-std::unique_ptr<p31::Editor> makeSpectrumEditor(const SpectrumPlugin& plugin, uint32_t width, uint32_t height);
+std::unique_ptr<p31::Editor> makeSpectrumEditor(SpectrumPlugin& plugin, uint32_t width, uint32_t height);
