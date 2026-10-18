@@ -99,7 +99,7 @@ struct SpectrumSettings {
     int  drawMode = DrawModeCurve;
     int  curveStyle = CurveStyleLineColorBars;
     int  curveOctaveFraction = 24; // curve detail: 0 = full, N = 1/N octave smoothing
-    int  colorBarBrightness = 69;  // strength of the loudest color bar, % (10-100)
+    int  colorBarBrightness = 85;  // strength of the loudest color bar, % (10-100)
     int  barCount = kBarCountAuto;
     int  barStyle = BarStyleGradient;
     int  gapPercent = 12;          // gap between bars, % of slot width
