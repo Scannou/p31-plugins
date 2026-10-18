@@ -21,6 +21,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(P31_COPY_AFTER_BUILD "Copy built plugins into ~/Library/Audio/Plug-Ins" ON)
 option(P31_BUILD_TESTS "Build unit tests" ON)
+option(P31_BUILD_DEV_TOOLS "Build developer tools (dev/)" ON)
 set(P31_SANITIZER "" CACHE STRING "Build everything with a sanitizer: thread, address or empty")
 
 if (P31_SANITIZER)
@@ -50,3 +51,7 @@ add_subdirectory(render)
 add_subdirectory(plugins/common)
 add_subdirectory(plugins/spectrum)
 add_subdirectory(plugins/scope)
+
+if (P31_BUILD_DEV_TOOLS)
+    add_subdirectory(dev)
+endif()

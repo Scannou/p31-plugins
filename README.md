@@ -9,8 +9,10 @@ Audio analyzer plugins for macOS, ported from the foobar2000 components in
 Both are CLAP plugins, wrapped by [clap-wrapper](https://github.com/free-audio/clap-wrapper)
 into VST3, AUv2 and a standalone app. Audio passes through untouched with zero latency.
 
-Status: phase 2. Pass-through plugins that pass every validator, plus the
-lock-free audio→UI ring buffer in `core/` with unit tests.
+Status: phase 3. P31 Scope works (goniometer / Lissajous, afterglow, tri-band
+correlation meter, resizable editor) with the fb2k component's default
+settings; a settings UI and saved settings come in phase 5. P31 Spectrum is
+still a pass-through.
 
 ## Requirements
 
@@ -42,6 +44,15 @@ cmake --preset tsan && cmake --build --preset tsan && ctest --preset tsan
 cmake --preset asan && cmake --build --preset asan && ctest --preset asan
 ```
 
+## Look at an editor without a DAW
+
+```sh
+build/dev/dev/p31-snapshot "build/dev/plugins/P31 Scope.clap" scope.png mix 2
+```
+
+Loads the plugin, opens its editor, plays a test signal (`mix`, `mono`, `left`,
+`wide`, `antiphase`, `silence`) for the given seconds and saves the editor as PNG.
+
 ## Validate
 
 ```sh
@@ -49,15 +60,17 @@ scripts/validate.sh [build-dir]
 ```
 
 Runs clap-validator, the Steinberg VST3 validator, `auval -strict` and pluginval
-(strictness 10, GUI tests skipped) against both plugins.
+(strictness 10, including GUI tests) against both plugins.
 
 ## Layout
 
 ```
 core/            pure C++20 DSP, no platform deps (tests in core/tests)
-plugins/common/  shared CLAP shell (ports, state, pass-through)
+render/          AppKit views, compiled into each plugin (unique ObjC class names)
+plugins/common/  shared CLAP shell (ports, state, pass-through, editor hosting)
 plugins/spectrum/
 plugins/scope/
+dev/             developer tools (p31-snapshot)
 cmake/ scripts/
 libs/            SDK submodules (CLAP, clap-wrapper, VST3 SDK, AudioUnitSDK, RtAudio, RtMidi, doctest)
 ```
