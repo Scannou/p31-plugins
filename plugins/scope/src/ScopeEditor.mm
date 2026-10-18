@@ -90,6 +90,10 @@ public:
         _root.presetMenu = ^NSMenu* { return editor->presetMenu(); };
         _root.isFrozen = ^BOOL { return editor->_plugin.frozen(); };
         _root.toggleFreeze = ^{ p31::editor::toggleFreeze(editor->_plugin); };
+        _root.requestResize = ^BOOL(NSSize size) {
+            return editor->_plugin.requestEditorResize(static_cast<uint32_t>(std::max(0.0, size.width)),
+                                                       static_cast<uint32_t>(std::max(0.0, size.height)));
+        };
         _view.onFrame = ^(double timestamp) { editor->tick(timestamp); };
 
         apply();

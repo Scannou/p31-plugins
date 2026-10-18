@@ -365,6 +365,15 @@ void PluginBase::settingsEdited() {
     if (_hostState) _hostState->mark_dirty(_host);
 }
 
+bool PluginBase::requestEditorResize(uint32_t width, uint32_t height) {
+    guiClampSize(width, height);
+    if (width == _editorWidth && height == _editorHeight) return true;
+    if (!_hostGui || !_hostGui->request_resize(_host, width, height)) return false;
+    // The host need not call set_size after accepting (CLAP gui.h).
+    guiSetSize(width, height);
+    return true;
+}
+
 #pragma mark - state
 
 bool PluginBase::saveState(const clap_ostream* stream) {

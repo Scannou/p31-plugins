@@ -30,3 +30,4 @@
 #define P31FlippedView        P31_OBJC_CLASS(P31FlippedView)
 #define P31MenuItem           P31_OBJC_CLASS(P31MenuItem)
 #define P31EditorRootView     P31_OBJC_CLASS(P31EditorRootView)
+#define P31ResizeGrip         P31_OBJC_CLASS(P31ResizeGrip)

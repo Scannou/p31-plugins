@@ -4,8 +4,9 @@
 //
 //  The editor's top-level view: the analyzer view filling it, a small
 //  toolbar (Freeze, Settings) that shows while the mouse is over the editor
-//  or while frozen, the settings panel laid over everything, and a
-//  right-click menu with the same actions plus presets. Objective-C++ only.
+//  or while frozen, the settings panel laid over everything, a right-click
+//  menu with the same actions plus presets, and a resize grip in the
+//  bottom-right corner. Objective-C++ only.
 //
 
 #pragma once
@@ -27,6 +28,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy, nullable) p31::ui::Form (^makeForm)(void);
 // Presets menu (panel header and right-click menu).
 @property (nonatomic, copy, nullable) NSMenu * (^presetMenu)(void);
+// The grip was dragged: ask the host for this size. Returns NO if refused.
+@property (nonatomic, copy, nullable) BOOL (^requestResize)(NSSize size);
 // Freeze state and toggle.
 @property (nonatomic, copy, nullable) BOOL (^isFrozen)(void);
 @property (nonatomic, copy, nullable) void (^toggleFreeze)(void);

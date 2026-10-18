@@ -61,6 +61,9 @@ public:
     std::string settingsText() const { return encodeSettings(); }
     // Main thread: the editor changed a setting.
     void settingsEdited();
+    // Main thread: the editor asks to be `width` x `height` points (its own
+    // resize grip). Clamped to the size limits; false if the host refused.
+    bool requestEditorResize(uint32_t width, uint32_t height);
     // Plugin name, as in the descriptor.
     const char* name() const { return _plugin.desc->name; }
 

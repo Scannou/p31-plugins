@@ -9,11 +9,74 @@
 
 #include <p31/core/Appearance.h>
 
+#include <cmath>
+
 namespace {
     constexpr CGFloat kToolbarInset = 6.0;
     constexpr CGFloat kButtonSize = 24.0;
     constexpr NSTimeInterval kFade = 0.15;
+    constexpr CGFloat kGripSize = 16.0;
 }
+
+// Bottom-right corner handle. Hosts like Live leave resizing to the plugin:
+// dragging this asks the host for a new size, the way plugins with their
+// own resize corner do.
+@interface P31ResizeGrip : NSView
+@property (nonatomic, copy, nullable) BOOL (^onResize)(NSSize size);
+@end
+
+@implementation P31ResizeGrip {
+    NSPoint _start;        // screen location of the mouse down
+    NSSize _startSize;     // editor size at the mouse down
+}
+
+- (BOOL)acceptsFirstMouse:(NSEvent *)event { return YES; }
+- (BOOL)mouseDownCanMoveWindow { return NO; }
+
+- (void)drawRect:(NSRect)dirtyRect {
+    // Three diagonal ridges, as on a window's size box.
+    [[NSColor.secondaryLabelColor colorWithAlphaComponent:0.7] setStroke];
+    const CGFloat s = kGripSize;
+    NSBezierPath *path = [NSBezierPath bezierPath];
+    path.lineWidth = 1.0;
+    for (CGFloat d : {4.0, 8.0, 12.0}) {
+        [path moveToPoint:NSMakePoint(s - d, 2.0)];
+        [path lineToPoint:NSMakePoint(s - 2.0, d)];
+    }
+    [path stroke];
+}
+
+- (void)resetCursorRects {
+#if defined(__MAC_15_0) && __MAC_OS_X_VERSION_MAX_ALLOWED >= __MAC_15_0
+    if (@available(macOS 15.0, *)) {
+        [self addCursorRect:self.bounds
+                     cursor:[NSCursor frameResizeCursorFromPosition:NSCursorFrameResizePositionBottomRight
+                                                       inDirections:NSCursorFrameResizeDirectionsAll]];
+    }
+#endif
+}
+
+- (NSPoint)screenLocation:(NSEvent *)event {
+    return [self.window convertPointToScreen:event.locationInWindow];
+}
+
+- (void)mouseDown:(NSEvent *)event {
+    _start = [self screenLocation:event];
+    _startSize = self.superview.bounds.size;
+}
+
+- (void)mouseDragged:(NSEvent *)event {
+    if (!self.onResize) return;
+    const NSPoint p = [self screenLocation:event];
+    // Screen y grows upwards: dragging down makes the editor taller.
+    const NSSize size = NSMakeSize(std::round(_startSize.width + p.x - _start.x),
+                                   std::round(_startSize.height - (p.y - _start.y)));
+    self.onResize(size);
+}
+
+- (void)rightMouseDown:(NSEvent *)event {}
+
+@end
 
 @implementation P31EditorRootView {
     NSView *_content;
@@ -21,6 +84,7 @@ namespace {
     NSVisualEffectView *_toolbar;
     NSButton *_freezeButton;
     NSButton *_settingsButton;
+    P31ResizeGrip *_grip;
     NSTrackingArea *_tracking;
     BOOL _hovering;
     BOOL _frozenShown;
@@ -56,6 +120,14 @@ namespace {
     __weak P31EditorRootView *weakSelf = self;
     _panel.onDone = ^{ [weakSelf hideSettings]; };
     [self addSubview:_panel];
+
+    _grip = [[P31ResizeGrip alloc] initWithFrame:NSZeroRect];
+    _grip.toolTip = @"Drag to resize";
+    _grip.onResize = ^BOOL(NSSize size) {
+        P31EditorRootView *root = weakSelf;
+        return root.requestResize ? root.requestResize(size) : NO;
+    };
+    [self addSubview:_grip];
     return self;
 }
 
@@ -88,6 +160,8 @@ namespace {
     _toolbar.frame = NSMakeRect(NSMaxX(b) - kToolbarInset - w, NSMaxY(b) - kToolbarInset - h, w, h);
     _freezeButton.frame = NSMakeRect(2.0, 2.0, kButtonSize, kButtonSize);
     _settingsButton.frame = NSMakeRect(4.0 + kButtonSize, 2.0, kButtonSize, kButtonSize);
+    _grip.frame = NSMakeRect(NSMaxX(b) - kGripSize, 0.0, kGripSize, kGripSize);
+    [self.window invalidateCursorRectsForView:_grip];
 }
 
 #pragma mark - Toolbar visibility
