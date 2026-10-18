@@ -2,9 +2,9 @@
 //  Menus.h
 //  p31-render
 //
-//  Menu items that run a block, and the Presets menu shared by both
-//  plugins: factory presets, the user's preset files, save / delete, and
-//  the default for new instances. Objective-C++ only.
+//  Menu items that run a block, the Presets menu shared by both plugins
+//  (factory presets, the user's preset files, save / delete, the default for
+//  new instances) and the About dialog. Objective-C++ only.
 //
 
 #pragma once
@@ -37,6 +37,17 @@ struct PresetSource {
 
 // Dialogs run as sheets on `anchor`'s window (or modally without one).
 NSMenu* makePresetMenu(const PresetSource& source, NSView* anchor);
+
+struct AboutInfo {
+    std::string name;          // "P31 Spectrum"
+    std::string version;       // "0.1.0"
+    std::string description;   // one line
+    uint32_t lightColor = 0xFF1B8A3A, darkColor = 0xFF4CFF7C;   // the mark, ARGB
+};
+
+// The About dialog: the P31 mark, name, version, description and license,
+// with a button for the third-party notices when the bundle carries them.
+void showAbout(const AboutInfo& info, NSView* anchor);
 
 } // namespace p31::ui
 

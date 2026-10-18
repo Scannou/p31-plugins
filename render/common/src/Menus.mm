@@ -5,6 +5,8 @@
 
 #import "p31/render/Menus.h"
 
+#import "p31/render/Logo.h"
+
 #include <filesystem>
 #include <memory>
 
@@ -101,6 +103,30 @@ NSMenuItem* header(NSString* title) {
 }
 
 } // namespace
+
+void showAbout(const AboutInfo& info, NSView* anchor) {
+    NSAppearanceName match = [(anchor ? anchor.effectiveAppearance : NSApp.effectiveAppearance)
+        bestMatchFromAppearancesWithNames:@[NSAppearanceNameAqua, NSAppearanceNameDarkAqua]];
+    const uint32_t argb = [match isEqualToString:NSAppearanceNameDarkAqua] ? info.darkColor : info.lightColor;
+    NSColor* color = [NSColor colorWithSRGBRed:((argb >> 16) & 0xFF) / 255.0
+                                         green:((argb >> 8) & 0xFF) / 255.0
+                                          blue:(argb & 0xFF) / 255.0
+                                         alpha:1.0];
+
+    NSAlert* alert = [[NSAlert alloc] init];
+    alert.icon = logoImage(LogoKind::Mark, 64.0, color);
+    alert.messageText = str(info.name);
+    alert.informativeText = [NSString stringWithFormat:@"Version %@\n%@\n\nCopyright \u00A9 2026 Scannou. MIT License.",
+                                                       str(info.version), str(info.description)];
+    [alert addButtonWithTitle:@"OK"];
+    // Packaged builds carry the notices in the bundle (scripts/package.sh).
+    NSBundle* bundle = [NSBundle bundleForClass:[P31MenuItem class]];
+    NSURL* notices = [bundle URLForResource:@"THIRD_PARTY_NOTICES" withExtension:@"txt"];
+    if (notices) [alert addButtonWithTitle:@"Third-Party Notices"];
+    runAlert(alert, anchor, ^(NSModalResponse r) {
+        if (r == NSAlertSecondButtonReturn && notices) [[NSWorkspace sharedWorkspace] openURL:notices];
+    });
+}
 
 NSMenu* makePresetMenu(const PresetSource& sourceRef, NSView* anchor) {
     auto source = std::make_shared<const PresetSource>(sourceRef);

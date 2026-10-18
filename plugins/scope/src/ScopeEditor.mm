@@ -82,7 +82,8 @@ public:
 
         const NSRect frame = NSMakeRect(0, 0, width, height);
         _view = [[P31ScopeView alloc] initWithFrame:frame];
-        _root = [[P31EditorRootView alloc] initWithFrame:frame content:_view title:@"P31 Scope"];
+        _root = [[P31EditorRootView alloc] initWithFrame:frame content:_view title:@"Scope"];
+        [_root setVersion:@P31_VERSION description:@"Vectorscope with tri-band phase correlation"];
 
         ScopeEditor* editor = this;
         _root.makeForm = ^Form { return editor->buildForm(); };
@@ -133,6 +134,8 @@ private:
     // Push _settings to the view and the analyzer.
     void apply() {
         const ScopeSettings s = _settings.sanitized();
+        // The brand takes the theme's main color, as the logo README asks.
+        [_root setBrandLightColor:_settings.light.trace darkColor:_settings.dark.trace];
         [_root setAppearanceMode:s.appearance];
         [_view applySettings:s];
 

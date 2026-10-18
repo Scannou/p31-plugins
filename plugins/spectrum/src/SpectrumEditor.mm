@@ -87,7 +87,8 @@ public:
 
         const NSRect frame = NSMakeRect(0, 0, width, height);
         _view = [[P31SpectrumView alloc] initWithFrame:frame];
-        _root = [[P31EditorRootView alloc] initWithFrame:frame content:_view title:@"P31 Spectrum"];
+        _root = [[P31EditorRootView alloc] initWithFrame:frame content:_view title:@"Spectrum"];
+        [_root setVersion:@P31_VERSION description:@"Real-time spectrum analyzer"];
 
         SpectrumEditor* editor = this;
         _root.makeForm = ^Form { return editor->buildForm(); };
@@ -143,6 +144,8 @@ public:
 private:
     // Push _settings to the view and the analyzer.
     void apply() {
+        // The brand takes the theme's main color, as the logo README asks.
+        [_root setBrandLightColor:_settings.light.bar darkColor:_settings.dark.bar];
         [_root setAppearanceMode:_settings.appearance];
         [_view applySettings:_settings];
         _analyzer.configure(analyzerSettings(_settings, static_cast<int>([_view autoBarCount])));

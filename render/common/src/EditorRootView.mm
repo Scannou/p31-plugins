@@ -88,12 +88,21 @@ namespace {
     NSTrackingArea *_tracking;
     BOOL _hovering;
     BOOL _frozenShown;
+    NSString *_title;
+    NSString *_version;
+    NSString *_description;
+    uint32_t _brandLight, _brandDark;
 }
 
 - (instancetype)initWithFrame:(NSRect)frame content:(NSView *)content title:(NSString *)title {
     self = [super initWithFrame:frame];
     if (!self) return nil;
     self.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    _title = [title copy];
+    _version = @"";
+    _description = @"";
+    _brandLight = 0xFF1B8A3A;
+    _brandDark = 0xFF4CFF7C;
 
     _content = content;
     _content.frame = self.bounds;
@@ -119,6 +128,7 @@ namespace {
     _panel.hidden = YES;
     __weak P31EditorRootView *weakSelf = self;
     _panel.onDone = ^{ [weakSelf hideSettings]; };
+    _panel.onLogoClick = ^{ [weakSelf showAbout]; };
     [self addSubview:_panel];
 
     _grip = [[P31ResizeGrip alloc] initWithFrame:NSZeroRect];
@@ -242,12 +252,40 @@ namespace {
     }
 }
 
+#pragma mark - Brand
+
+- (void)setVersion:(NSString *)version description:(NSString *)description {
+    _version = [version copy];
+    _description = [description copy];
+    _panel.version = [@"v" stringByAppendingString:version];
+}
+
+- (void)setBrandLightColor:(uint32_t)light darkColor:(uint32_t)dark {
+    _brandLight = light;
+    _brandDark = dark;
+    [_panel setLogoLightColor:light darkColor:dark];
+}
+
+- (void)showAbout {
+    p31::ui::AboutInfo info;
+    info.name = std::string("P31 ") + _title.UTF8String;
+    info.version = _version.UTF8String;
+    info.description = _description.UTF8String;
+    info.lightColor = _brandLight;
+    info.darkColor = _brandDark;
+    p31::ui::showAbout(info, self);
+}
+
 #pragma mark - Context menu
 
 - (void)rightMouseDown:(NSEvent *)event {
     NSMenu *menu = [[NSMenu alloc] initWithTitle:@"P31"];
     menu.autoenablesItems = NO;
     __weak P31EditorRootView *weakSelf = self;
+
+    NSString *about = [NSString stringWithFormat:@"About P31 %@\u2026", _title];
+    [menu addItem:[P31MenuItem itemWithTitle:about handler:^{ [weakSelf showAbout]; }]];
+    [menu addItem:[NSMenuItem separatorItem]];
 
     P31MenuItem *freeze = [P31MenuItem itemWithTitle:@"Freeze" handler:^{ [weakSelf freezePressed:nil]; }];
     freeze.state = (self.isFrozen && self.isFrozen()) ? NSControlStateValueOn : NSControlStateValueOff;

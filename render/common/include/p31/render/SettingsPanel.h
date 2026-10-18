@@ -2,11 +2,12 @@
 //  SettingsPanel.h
 //  p31-render
 //
-//  Settings page laid over the editor: a header with the title, a Presets
-//  button and Done, and below it the rows of a p31::ui::Form as controls in a
-//  scrolling grid. Every edit goes through the row's callbacks, then
-//  `onChange`, then the controls re-read their values (so they show what the
-//  settings sanitised them to). Objective-C++ only.
+//  Settings page laid over the editor: a header with the P31 lockup, the
+//  plugin's name and version, a Presets button and Done, and below it the
+//  rows of a p31::ui::Form as controls in a scrolling grid. Every edit goes
+//  through the row's callbacks, then `onChange`, then the controls re-read
+//  their values (so they show what the settings sanitised them to).
+//  Objective-C++ only.
 //
 
 #pragma once
@@ -20,7 +21,15 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface P31SettingsPanel : NSView
 
+// `title` is the plugin's name after the brand ("Spectrum").
 - (instancetype)initWithFrame:(NSRect)frame title:(NSString *)title;
+
+// Shown after the title, e.g. "v0.1.0".
+@property (nonatomic, copy, nullable) NSString *version;
+// The lockup's color per appearance (ARGB): the theme's main color.
+- (void)setLogoLightColor:(uint32_t)light darkColor:(uint32_t)dark;
+// The lockup was clicked.
+@property (nonatomic, copy, nullable) void (^onLogoClick)(void);
 
 // Replace the rows (builds the controls).
 - (void)setForm:(p31::ui::Form)form;

@@ -5,6 +5,8 @@
 
 #import "p31/render/SettingsPanel.h"
 
+#import "p31/render/Logo.h"
+
 #include <algorithm>
 #include <cmath>
 #include <vector>
@@ -13,6 +15,7 @@ using p31::ui::Row;
 
 namespace {
     constexpr CGFloat kHeaderHeight = 40.0;
+    constexpr CGFloat kLockupHeight = 24.0;   // as the brand README specifies
     constexpr CGFloat kMargin = 16.0;
     constexpr CGFloat kGridWidth = 420.0;
     constexpr CGFloat kSliderWidth = 150.0;
@@ -72,7 +75,9 @@ namespace {
     p31::ui::Form _form;
     std::vector<RowControls> _controls;
     NSVisualEffectView *_background;
+    P31LogoView *_lockup;
     NSTextField *_title;
+    NSTextField *_versionLabel;
     NSButton *_presetsButton;
     NSButton *_doneButton;
     NSBox *_divider;
@@ -94,10 +99,19 @@ namespace {
     _background.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
     [self addSubview:_background];
 
+    _lockup = [[P31LogoView alloc] initWithKind:p31::ui::LogoKind::Lockup];
+    _lockup.toolTip = @"About";
+    [self addSubview:_lockup];
+
     _title = [NSTextField labelWithString:title];
-    _title.font = [NSFont boldSystemFontOfSize:NSFont.systemFontSize];
+    _title.font = [NSFont systemFontOfSize:NSFont.systemFontSize + 2 weight:NSFontWeightSemibold];
     _title.lineBreakMode = NSLineBreakByTruncatingTail;
     [self addSubview:_title];
+
+    _versionLabel = [NSTextField labelWithString:@""];
+    _versionLabel.font = [NSFont monospacedDigitSystemFontOfSize:NSFont.smallSystemFontSize weight:NSFontWeightRegular];
+    _versionLabel.textColor = NSColor.secondaryLabelColor;
+    [self addSubview:_versionLabel];
 
     _presetsButton = [NSButton buttonWithTitle:@"Presets" target:self action:@selector(showPresets:)];
     _presetsButton.controlSize = NSControlSizeSmall;
@@ -128,6 +142,23 @@ namespace {
 }
 
 - (BOOL)isFlipped { return YES; }
+
+- (void)setVersion:(NSString *)version {
+    _version = [version copy];
+    _versionLabel.stringValue = version ? version : @"";
+    [self setNeedsLayout:YES];
+}
+
+- (void)setLogoLightColor:(uint32_t)light darkColor:(uint32_t)dark {
+    _lockup.lightColor = light;
+    _lockup.darkColor = dark;
+}
+
+- (void)setOnLogoClick:(void (^)(void))onLogoClick {
+    _onLogoClick = [onLogoClick copy];
+    _lockup.onClick = _onLogoClick;
+    [self.window invalidateCursorRectsForView:_lockup];
+}
 
 // Clicks stop here instead of reaching the analyzer underneath.
 - (void)mouseDown:(NSEvent *)event {}
@@ -282,8 +313,22 @@ namespace {
     _doneButton.frame = done;
     _presetsButton.frame = presets;
     _presetsButton.hidden = self.presetMenu == nil;
-    const CGFloat titleRight = (_presetsButton.hidden ? NSMinX(done) : NSMinX(presets)) - 8;
-    _title.frame = NSMakeRect(kMargin, (kHeaderHeight - 18.0) / 2.0, std::max<CGFloat>(0, titleRight - kMargin), 18.0);
+    // Lockup, then the name and version on the lockup's text baseline area.
+    const CGFloat right = (_presetsButton.hidden ? NSMinX(done) : NSMinX(presets)) - 8;
+    const CGFloat lockupWidth = [_lockup widthForHeight:kLockupHeight];
+    _lockup.frame = NSMakeRect(kMargin, (kHeaderHeight - kLockupHeight) / 2.0, lockupWidth, kLockupHeight);
+    [_title sizeToFit];
+    [_versionLabel sizeToFit];
+    const CGFloat titleX = NSMaxX(_lockup.frame) + 8;
+    const CGFloat titleW = std::max<CGFloat>(0, std::min(_title.frame.size.width, right - titleX));
+    const CGFloat titleH = _title.frame.size.height;
+    _title.frame = NSMakeRect(titleX, (kHeaderHeight - titleH) / 2.0, titleW, titleH);
+    const CGFloat versionX = NSMaxX(_title.frame) + 6;
+    const CGFloat versionH = _versionLabel.frame.size.height;
+    // Sits on the title's baseline.
+    const CGFloat versionY = NSMaxY(_title.frame) - versionH - (_title.font.descender - _versionLabel.font.descender);
+    _versionLabel.frame = NSMakeRect(versionX, versionY, _versionLabel.frame.size.width, versionH);
+    _versionLabel.hidden = NSMaxX(_versionLabel.frame) > right || _versionLabel.stringValue.length == 0;
 
     _divider.frame = NSMakeRect(0, kHeaderHeight - 1.0, b.size.width, 1.0);
     _scroll.frame = NSMakeRect(0, kHeaderHeight, b.size.width, std::max<CGFloat>(0, b.size.height - kHeaderHeight));
