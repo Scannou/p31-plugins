@@ -250,6 +250,7 @@ TEST_CASE("Settings map to analyzer rates as in fb2k") {
     CHECK(s.freqScale == FreqScaleSoftLog);
     CHECK(s.peakFall == doctest::Approx(12.0 / 60.0 / 90.0));
     CHECK(s.peakHoldSec == doctest::Approx(0.92));
+    CHECK(s.slopeDbPerOct == doctest::Approx(2.0));   // our default; fb2k's was flat
     // RMS: the shadow falls slower than the RMS curve can.
     const double curveFall = 10.0 * std::log10(std::exp(1.0)) / 0.27 / 60.0 / 90.0;
     CHECK(s.shadowFall < curveFall);

@@ -83,7 +83,7 @@ struct SpectrumSettings {
     int  maxHz = 20000;
     int  freqScale = FreqScaleSoftLog;
     int  stereoMode = StereoMono;
-    int  slopeTenths = 0;          // spectral tilt around 1 kHz, 0.1 dB/octave
+    int  slopeTenths = 20;         // spectral tilt around 1 kHz, 0.1 dB/octave
 
     // Motion
     int  smoothingMode = SmoothingRms;

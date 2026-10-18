@@ -63,8 +63,8 @@ std::unique_ptr<p31::Editor> SpectrumPlugin::createEditor(uint32_t width, uint32
 
 p31::EditorSizeLimits SpectrumPlugin::editorSizeLimits() const {
     p31::EditorSizeLimits limits;
-    limits.defaultWidth = 640;
-    limits.defaultHeight = 300;
+    limits.defaultWidth = 800;
+    limits.defaultHeight = 400;
     limits.minWidth = 200;
     limits.minHeight = 100;
     return limits;
