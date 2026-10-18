@@ -26,3 +26,7 @@
 #define P31DisplayLinkTarget  P31_OBJC_CLASS(P31DisplayLinkTarget)
 #define P31ScopeView          P31_OBJC_CLASS(P31ScopeView)
 #define P31SpectrumView       P31_OBJC_CLASS(P31SpectrumView)
+#define P31SettingsPanel      P31_OBJC_CLASS(P31SettingsPanel)
+#define P31FlippedView        P31_OBJC_CLASS(P31FlippedView)
+#define P31MenuItem           P31_OBJC_CLASS(P31MenuItem)
+#define P31EditorRootView     P31_OBJC_CLASS(P31EditorRootView)

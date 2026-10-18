@@ -5,9 +5,12 @@
 add_library(p31-render-common INTERFACE)
 target_sources(p31-render-common INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/common/src/AnimatedView.mm
+    ${CMAKE_CURRENT_SOURCE_DIR}/common/src/EditorRootView.mm
+    ${CMAKE_CURRENT_SOURCE_DIR}/common/src/Menus.mm
+    ${CMAKE_CURRENT_SOURCE_DIR}/common/src/SettingsPanel.mm
 )
 target_include_directories(p31-render-common INTERFACE common/include)
-target_link_libraries(p31-render-common INTERFACE "-framework Cocoa" "-framework QuartzCore")
+target_link_libraries(p31-render-common INTERFACE p31-core "-framework Cocoa" "-framework QuartzCore")
 
 add_library(p31-render-scope INTERFACE)
 target_sources(p31-render-scope INTERFACE
