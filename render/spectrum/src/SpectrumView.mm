@@ -165,11 +165,17 @@ static NSColor *colorFromARGB(uint32_t argb) {
 }
 
 - (NSColor *)gridLabelColor {
-    // Labels track opacity directly so 0% hides the grid entirely. A gentle
-    // boost keeps them a touch more legible than the lines at low settings.
-    CGFloat a = _gridOpacity / 100.0;
-    if (a > 0.0) a = MIN(1.0, a * 1.4);
-    return [[self gridColor] colorWithAlphaComponent:a];
+    // Labels must stay readable whatever the grid looks like, so they do not
+    // take the grid's color or opacity (a theme's grid is often a dark grey
+    // meant to recede). They are the background pushed most of the way to
+    // white, or to black on a light background. Opacity 0 still hides the
+    // whole grid, labels included.
+    if (_gridOpacity <= 0) return [NSColor clearColor];
+    NSColor *bg = [[self bgColor] colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
+    if (!bg) return NSColor.secondaryLabelColor;
+    const CGFloat luminance = 0.2126 * bg.redComponent + 0.7152 * bg.greenComponent + 0.0722 * bg.blueComponent;
+    NSColor *ink = luminance < 0.5 ? NSColor.whiteColor : NSColor.blackColor;
+    return [bg blendedColorWithFraction:0.7 ofColor:ink];
 }
 
 // Fraction 0..1 across the plot width for a given frequency, matching the
@@ -196,10 +202,14 @@ static NSColor *colorFromARGB(uint32_t argb) {
     return CGPointMake(_pOx + f * _pFreq, _pOy + m * _pMag);
 }
 
+// Axis labels: large enough to read at a glance next to a busy spectrum.
+static const CGFloat kLabelFontSize = 11.0;
+static const NSFontWeight kLabelWeight = NSFontWeightMedium;
+
 // The magnitude axis needs a wide margin for "-80" labels; the frequency
 // axis a thinner one. Which screen edge holds which depends on orientation.
-static const CGFloat kDbThick = 40.0;    // along the magnitude axis
-static const CGFloat kFreqThick = 20.0;  // along the frequency axis
+static const CGFloat kDbThick = 42.0;    // along the magnitude axis
+static const CGFloat kFreqThick = 22.0;  // along the frequency axis
 // Empty border on each side of the view (the background still fills it).
 // The plot runs to the left and top edges; the labels on the right and the
 // bottom keep clear of the window edge.
@@ -209,7 +219,7 @@ static const CGFloat kMarginRight = 4.0;
 static const CGFloat kMarginBottom = 10.0;
 
 static NSFont *dbLabelFont() {
-    return [NSFont monospacedDigitSystemFontOfSize:kLabelFontSize weight:NSFontWeightRegular];
+    return [NSFont monospacedDigitSystemFontOfSize:kLabelFontSize weight:kLabelWeight];
 }
 
 // Room past the loud end of the plot: the dB label there is centred on its
@@ -221,7 +231,7 @@ static CGFloat loudEndInset() {
     }();
     return inset;
 }
-static const CGFloat kLabelFontSize = 10.0;
+
 // Minor gridlines (between the decades) at this fraction of the grid opacity.
 static const CGFloat kMinorGridAlpha = 0.45;
 
@@ -600,12 +610,14 @@ static CGFloat colorBarStrength(CGFloat level) {
         NSForegroundColorAttributeName: [self gridLabelColor]
     };
     CGContextSetLineWidth(ctx, 1.0);
-    CGContextSetStrokeColorWithColor(ctx, [self gridLineColor].CGColor);
+    NSColor *lineColor = [self gridLineColor];
 
     // Numbers only, as on studio analyzers; the topmost line names the unit.
     int startDb = (int)(std::floor(ceilDb / step) * step);
     for (int db = startDb; db > (int)floorDb; db -= step) {
         CGFloat v = (db - floorDb) / range;
+        // Per line: drawing a label sets the context's colors to its own.
+        CGContextSetStrokeColorWithColor(ctx, lineColor.CGColor);
         NSString *label = db == startDb ? [NSString stringWithFormat:@"%d dB", db]
                                         : [NSString stringWithFormat:@"%d", db];
         NSSize sz = [label sizeWithAttributes:attrs];
@@ -632,7 +644,7 @@ static CGFloat colorBarStrength(CGFloat level) {
 // Frequency axis: lines of constant frequency across the magnitude axis.
 - (void)drawFreqAxisInContext:(CGContextRef)ctx {
     NSDictionary *attrs = @{
-        NSFontAttributeName: [NSFont monospacedDigitSystemFontOfSize:kLabelFontSize weight:NSFontWeightRegular],
+        NSFontAttributeName: [NSFont monospacedDigitSystemFontOfSize:kLabelFontSize weight:kLabelWeight],
         NSForegroundColorAttributeName: [self gridLabelColor]
     };
     CGContextSetLineWidth(ctx, 1.0);
@@ -767,7 +779,7 @@ static NSString *compactHz(double f) {
 
 - (NSDictionary *)barLabelAttrs {
     return @{
-        NSFontAttributeName: [NSFont systemFontOfSize:kLabelFontSize - 1 weight:NSFontWeightRegular],
+        NSFontAttributeName: [NSFont systemFontOfSize:kLabelFontSize - 1 weight:kLabelWeight],
         NSForegroundColorAttributeName: [self gridLabelColor]
     };
 }
