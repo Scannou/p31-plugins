@@ -46,6 +46,7 @@ endif()
 include(cmake/P31Plugin.cmake)
 
 add_subdirectory(core)
+add_subdirectory(render)
 add_subdirectory(plugins/common)
 add_subdirectory(plugins/spectrum)
 add_subdirectory(plugins/scope)
