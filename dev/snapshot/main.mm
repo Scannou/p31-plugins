@@ -16,7 +16,9 @@
 //  down); the host side resizes the window like a DAW does.
 //  signals: mix (default), mono, left, wide, antiphase, silence,
 //           sine (1 kHz at -6 dBFS), tones (100 Hz / 1 kHz / 10 kHz at -12 dBFS),
-//           white (white noise at -20 dBFS RMS)
+//           white (white noise at -20 dBFS RMS),
+//           file:<path> (raw interleaved stereo float32 at 48 kHz, looped; e.g.
+//           ffmpeg -i in.wav -f f32le -ac 2 -ar 48000 out.f32)
 //
 
 #import <Cocoa/Cocoa.h>
@@ -69,8 +71,17 @@ const clap_host kHost{
     [](const clap_host*) {},
 };
 
+// Audio of a file: signal, interleaved L/R.
+std::vector<float> g_file;
+
 // One stereo frame of the named test signal at sample index n.
 void signalAt(const std::string& name, uint64_t n, std::mt19937& rng, float& l, float& r) {
+    if (!g_file.empty()) {
+        const size_t i = static_cast<size_t>(n % (g_file.size() / 2));
+        l = g_file[2 * i];
+        r = g_file[2 * i + 1];
+        return;
+    }
     const double t = static_cast<double>(n) / kSampleRate;
     std::normal_distribution<float> noise(0.0f, 1.0f);
     if (name == "silence") { l = r = 0.0f; return; }
@@ -225,6 +236,12 @@ int main(int argc, const char* argv[]) {
         const double seconds = argc > 4 ? std::atof(argv[4]) : 2.0;
         const uint32_t width = argc > 5 ? static_cast<uint32_t>(std::atoi(argv[5])) : 420;
         const uint32_t height = argc > 6 ? static_cast<uint32_t>(std::atoi(argv[6])) : 460;
+        if (signal.rfind("file:", 0) == 0) {
+            NSData* data = [NSData dataWithContentsOfFile:@(signal.c_str() + 5)];
+            if (data.length < 8) { std::fprintf(stderr, "cannot read %s\n", signal.c_str() + 5); return 1; }
+            g_file.resize(data.length / sizeof(float) / 2 * 2);
+            std::memcpy(g_file.data(), data.bytes, g_file.size() * sizeof(float));
+        }
         const bool openSettings = argc > 7 && std::strcmp(argv[7], "settings") == 0;
         const double scroll = argc > 8 ? std::atof(argv[8]) : 0.0;
 
