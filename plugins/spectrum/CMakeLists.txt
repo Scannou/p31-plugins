@@ -4,5 +4,6 @@ p31_add_plugin(
     DISPLAY_NAME "P31 Spectrum"
     AU_SUBTYPE "P31S"
     ENTRY "${CMAKE_CURRENT_SOURCE_DIR}/src/Entry.cpp"
-    SOURCES src/SpectrumPlugin.cpp
+    SOURCES src/SpectrumPlugin.cpp src/SpectrumEditor.mm
+    LINK p31-render-spectrum
 )

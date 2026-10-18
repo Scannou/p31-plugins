@@ -5,6 +5,8 @@
 
 #include "SpectrumPlugin.h"
 
+#include "SpectrumEditor.h"
+
 namespace {
     const char* const kFeatures[] = {
         CLAP_PLUGIN_FEATURE_AUDIO_EFFECT,
@@ -13,6 +15,10 @@ namespace {
         CLAP_PLUGIN_FEATURE_STEREO,
         nullptr,
     };
+
+    // Audio history kept for the editor. The editor reads at most ~100 ms per
+    // display frame; the rest is headroom for a stalled UI.
+    constexpr size_t kRingFrames = 65536;
 }
 
 const clap_plugin_descriptor SpectrumPlugin::descriptor{
@@ -27,6 +33,25 @@ const clap_plugin_descriptor SpectrumPlugin::descriptor{
     .description = "Real-time spectrum analyzer",
     .features = kFeatures,
 };
+
+SpectrumPlugin::SpectrumPlugin(const clap_host* host) : PluginBase(&descriptor, host), _ring(2, kRingFrames) {}
+
+void SpectrumPlugin::analyze(const float* const* channels, uint32_t channelCount, uint32_t frames) {
+    _ring.write(channels, channelCount, frames);
+}
+
+std::unique_ptr<p31::Editor> SpectrumPlugin::createEditor(uint32_t width, uint32_t height) {
+    return makeSpectrumEditor(*this, width, height);
+}
+
+p31::EditorSizeLimits SpectrumPlugin::editorSizeLimits() const {
+    p31::EditorSizeLimits limits;
+    limits.defaultWidth = 640;
+    limits.defaultHeight = 300;
+    limits.minWidth = 200;
+    limits.minHeight = 100;
+    return limits;
+}
 
 bool p31_spectrum_init(const char*) { return true; }
 void p31_spectrum_deinit() {}
