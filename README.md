@@ -59,9 +59,10 @@ signed yet, and each release's notes explain how to open one.
 ## Install
 
 Run `P31-Plugins-<version>.pkg` (from a GitHub release once there is one, a CI
-run's artifacts, or `scripts/package.sh`). "Customize" picks the formats:
+run's artifacts, or `scripts/package.sh`). The installer lists each plugin with
+a box per format, so you can install, say, only P31 Spectrum as VST3 and CLAP:
 
-| Choice | Installs to |
+| Format | Installs to |
 |---|---|
 | CLAP | `/Library/Audio/Plug-Ins/CLAP` |
 | VST3 | `/Library/Audio/Plug-Ins/VST3` |

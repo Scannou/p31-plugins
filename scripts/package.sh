@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Build the macOS installer: dist/P31-Plugins-<version>.pkg with CLAP, VST3,
-# AU and the standalone apps as separate choices.
+# Build the macOS installer: dist/P31-Plugins-<version>.pkg. Each plugin is a
+# group of choices with one box per format (CLAP, VST3, Audio Unit, standalone
+# app), so users install only what they want.
 #
 #   scripts/package.sh [--skip-build] [--build-dir DIR]
 #
@@ -39,10 +40,25 @@ if [[ $NOTARIZE == 1 && ( -z "$SIGN_ID" || -z "$INSTALLER_ID" ) ]]; then
 fi
 
 VERSION=$(sed -n 's/^project(p31-plugins VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
-PLUGINS=("P31 Spectrum" "P31 Scope")
 DIST=dist
 STAGE=$DIST/stage
 PKG=$DIST/P31-Plugins-$VERSION.pkg
+
+# What the installer offers. Each plugin x format is its own component
+# package (com.scannou.p31.<plugin>.<format>).
+#   plugin: id | name | description
+PLUGIN_ROWS=(
+    "spectrum|P31 Spectrum|Real-time spectrum analyzer"
+    "scope|P31 Scope|Vectorscope with tri-band phase correlation"
+)
+#   format: id | title | bundle extension | install location | hosts
+FORMAT_ROWS=(
+    "clap|CLAP|clap|/Library/Audio/Plug-Ins/CLAP|Bitwig, Reaper and other CLAP hosts"
+    "vst3|VST3|vst3|/Library/Audio/Plug-Ins/VST3|Live, Cubase, Reaper and most other hosts"
+    "au|Audio Unit|component|/Library/Audio/Plug-Ins/Components|Logic, GarageBand, Live and other AU hosts"
+    "app|Standalone app|app|/Applications|analyse any input device without a DAW"
+)
+field() { echo "$1" | cut -d'|' -f"$2"; }
 
 step() { printf '\n== %s\n' "$*"; }
 
@@ -54,22 +70,24 @@ fi
 
 step "Stage bundles"
 rm -rf "$DIST"
-mkdir -p "$STAGE"/{CLAP,VST3,Components,Applications} "$DIST/pkgs" "$DIST/resources"
-for p in "${PLUGINS[@]}"; do
-    ditto "$BUILD_DIR/plugins/$p.clap" "$STAGE/CLAP/$p.clap"
-    ditto "$BUILD_DIR/plugins/$p.vst3" "$STAGE/VST3/$p.vst3"
-    ditto "$BUILD_DIR/plugins/$p.component" "$STAGE/Components/$p.component"
-    ditto "$BUILD_DIR/plugins/$p.app" "$STAGE/Applications/$p.app"
+mkdir -p "$DIST/pkgs" "$DIST/resources"
+for prow in "${PLUGIN_ROWS[@]}"; do
+    pid=$(field "$prow" 1); pname=$(field "$prow" 2)
+    for frow in "${FORMAT_ROWS[@]}"; do
+        fid=$(field "$frow" 1); ext=$(field "$frow" 3)
+        mkdir -p "$STAGE/$pid/$fid"
+        ditto "$BUILD_DIR/plugins/$pname.$ext" "$STAGE/$pid/$fid/$pname.$ext"
+    done
 done
 # Every bundle carries the licenses.
-for b in "$STAGE"/*/*.{clap,vst3,component,app}; do
+for b in "$STAGE"/*/*/*.{clap,vst3,component,app}; do
     mkdir -p "$b/Contents/Resources"
     cp LICENSE "$b/Contents/Resources/LICENSE.txt"
     cp THIRD_PARTY_NOTICES.txt "$b/Contents/Resources/"
 done
 
 step "Sign bundles (${SIGN_ID:-ad-hoc})"
-for b in "$STAGE"/*/*.{clap,vst3,component,app}; do
+for b in "$STAGE"/*/*/*.{clap,vst3,component,app}; do
     args=(--force --sign "${SIGN_ID:--}")
     if [[ -n "$SIGN_ID" ]]; then args+=(--timestamp --options runtime); fi
     # The standalone apps record from the input device chosen in them.
@@ -79,20 +97,19 @@ for b in "$STAGE"/*/*.{clap,vst3,component,app}; do
 done
 
 step "Component packages"
-cat > "$DIST/postinstall-au" <<'SH'
-#!/bin/sh
-# Make hosts see new or updated Audio Units without a log out.
-killall -9 AudioComponentRegistrar 2>/dev/null || true
-exit 0
-SH
-chmod +x "$DIST/postinstall-au"
 mkdir -p "$DIST/scripts-au"
-mv "$DIST/postinstall-au" "$DIST/scripts-au/postinstall"
+{
+    echo '#!/bin/sh'
+    echo '# Make hosts see new or updated Audio Units without a log out.'
+    echo 'killall -9 AudioComponentRegistrar 2>/dev/null || true'
+    echo 'exit 0'
+} > "$DIST/scripts-au/postinstall"
+chmod +x "$DIST/scripts-au/postinstall"
 
-component() {  # id, stage subdir, install location, [scripts dir]
-    local id=$1 dir=$2 location=$3 scripts=${4:-}
+component() {  # plugin id, format id, install location, [scripts dir]
+    local id="$1.$2" root="$STAGE/$1/$2" location=$3 scripts=${4:-}
     local plist="$DIST/pkgs/$id.plist"
-    pkgbuild --analyze --root "$STAGE/$dir" "$plist" >/dev/null
+    pkgbuild --analyze --root "$root" "$plist" >/dev/null
     # Installed bundles must land where we say, not "relocate" onto a copy
     # the installer finds elsewhere on the disk (e.g. a build folder).
     local count
@@ -101,16 +118,23 @@ component() {  # id, stage subdir, install location, [scripts dir]
         /usr/libexec/PlistBuddy -c "Delete :$i:BundleIsRelocatable" "$plist" 2>/dev/null || true
         /usr/libexec/PlistBuddy -c "Add :$i:BundleIsRelocatable bool false" "$plist"
     done
-    local args=(--root "$STAGE/$dir" --component-plist "$plist" --identifier "com.scannou.p31.$id"
+    local args=(--root "$root" --component-plist "$plist" --identifier "com.scannou.p31.$id"
                 --version "$VERSION" --install-location "$location")
     if [[ -n "$scripts" ]]; then args+=(--scripts "$scripts"); fi
     pkgbuild "${args[@]}" "$DIST/pkgs/$id.pkg" >/dev/null
     echo "$id -> $location"
 }
-component clap CLAP /Library/Audio/Plug-Ins/CLAP
-component vst3 VST3 /Library/Audio/Plug-Ins/VST3
-component au Components /Library/Audio/Plug-Ins/Components "$DIST/scripts-au"
-component apps Applications /Applications
+for prow in "${PLUGIN_ROWS[@]}"; do
+    pid=$(field "$prow" 1)
+    for frow in "${FORMAT_ROWS[@]}"; do
+        fid=$(field "$frow" 1); location=$(field "$frow" 4)
+        if [[ "$fid" == au ]]; then
+            component "$pid" "$fid" "$location" "$DIST/scripts-au"
+        else
+            component "$pid" "$fid" "$location"
+        fi
+    done
+done
 
 step "Installer"
 {
@@ -118,53 +142,62 @@ step "Installer"
     printf '\n\n'
     cat THIRD_PARTY_NOTICES.txt
 } > "$DIST/resources/license.txt"
-cat > "$DIST/resources/welcome.txt" <<EOF
-P31 Plugins $VERSION
+{
+    echo "P31 Plugins $VERSION"
+    echo
+    echo "P31 Spectrum: real-time spectrum analyzer."
+    echo "P31 Scope: vectorscope with tri-band phase correlation."
+    echo
+    echo "Both pass audio through untouched. The next steps let you pick which"
+    echo "plugins to install and in which formats: CLAP, VST3, Audio Unit, and"
+    echo "standalone apps that analyse an input device."
+} > "$DIST/resources/welcome.txt"
 
-P31 Spectrum: real-time spectrum analyzer.
-P31 Scope: vectorscope with tri-band phase correlation.
+# Choices: one group per plugin, one box per format inside it.
+xml=$DIST/distribution.xml
+{
+    echo '<?xml version="1.0" encoding="utf-8"?>'
+    echo '<installer-gui-script minSpecVersion="2">'
+    echo "    <title>P31 Plugins $VERSION</title>"
+    echo '    <welcome file="welcome.txt" mime-type="text/plain"/>'
+    echo '    <license file="license.txt" mime-type="text/plain"/>'
+    echo '    <options customize="always" require-scripts="false" hostArchitectures="arm64,x86_64"/>'
+    echo '    <domains enable_localSystem="true"/>'
+    echo '    <volume-check>'
+    echo '        <allowed-os-versions><os-version min="12.0"/></allowed-os-versions>'
+    echo '    </volume-check>'
+    echo '    <choices-outline>'
+    for prow in "${PLUGIN_ROWS[@]}"; do
+        pid=$(field "$prow" 1)
+        echo "        <line choice=\"$pid\">"
+        for frow in "${FORMAT_ROWS[@]}"; do
+            echo "            <line choice=\"$pid.$(field "$frow" 1)\"/>"
+        done
+        echo '        </line>'
+    done
+    echo '    </choices-outline>'
+    for prow in "${PLUGIN_ROWS[@]}"; do
+        pid=$(field "$prow" 1); pname=$(field "$prow" 2); pdesc=$(field "$prow" 3)
+        echo "    <choice id=\"$pid\" title=\"$pname\" description=\"$pdesc\"/>"
+        for frow in "${FORMAT_ROWS[@]}"; do
+            fid=$(field "$frow" 1); ftitle=$(field "$frow" 2)
+            location=$(field "$frow" 4); hosts=$(field "$frow" 5)
+            echo "    <choice id=\"$pid.$fid\" title=\"$ftitle\" description=\"$location ($hosts)\">"
+            echo "        <pkg-ref id=\"com.scannou.p31.$pid.$fid\"/>"
+            echo '    </choice>'
+        done
+    done
+    for prow in "${PLUGIN_ROWS[@]}"; do
+        pid=$(field "$prow" 1)
+        for frow in "${FORMAT_ROWS[@]}"; do
+            fid=$(field "$frow" 1)
+            echo "    <pkg-ref id=\"com.scannou.p31.$pid.$fid\" version=\"$VERSION\">$pid.$fid.pkg</pkg-ref>"
+        done
+    done
+    echo '</installer-gui-script>'
+} > "$xml"
 
-Both pass audio through untouched. Choose "Customize" to pick formats: CLAP,
-VST3 and Audio Unit plugins, and standalone apps that analyse an input device.
-EOF
-
-cat > "$DIST/distribution.xml" <<EOF
-<?xml version="1.0" encoding="utf-8"?>
-<installer-gui-script minSpecVersion="2">
-    <title>P31 Plugins $VERSION</title>
-    <welcome file="welcome.txt" mime-type="text/plain"/>
-    <license file="license.txt" mime-type="text/plain"/>
-    <options customize="allow" require-scripts="false" hostArchitectures="arm64,x86_64"/>
-    <domains enable_localSystem="true"/>
-    <volume-check>
-        <allowed-os-versions><os-version min="12.0"/></allowed-os-versions>
-    </volume-check>
-    <choices-outline>
-        <line choice="clap"/>
-        <line choice="vst3"/>
-        <line choice="au"/>
-        <line choice="apps"/>
-    </choices-outline>
-    <choice id="clap" title="CLAP plugins" description="/Library/Audio/Plug-Ins/CLAP">
-        <pkg-ref id="com.scannou.p31.clap"/>
-    </choice>
-    <choice id="vst3" title="VST3 plugins" description="/Library/Audio/Plug-Ins/VST3">
-        <pkg-ref id="com.scannou.p31.vst3"/>
-    </choice>
-    <choice id="au" title="Audio Unit plugins" description="/Library/Audio/Plug-Ins/Components (Logic, GarageBand, Live and others)">
-        <pkg-ref id="com.scannou.p31.au"/>
-    </choice>
-    <choice id="apps" title="Standalone apps" description="/Applications: analyse any input device without a DAW">
-        <pkg-ref id="com.scannou.p31.apps"/>
-    </choice>
-    <pkg-ref id="com.scannou.p31.clap" version="$VERSION">clap.pkg</pkg-ref>
-    <pkg-ref id="com.scannou.p31.vst3" version="$VERSION">vst3.pkg</pkg-ref>
-    <pkg-ref id="com.scannou.p31.au" version="$VERSION">au.pkg</pkg-ref>
-    <pkg-ref id="com.scannou.p31.apps" version="$VERSION">apps.pkg</pkg-ref>
-</installer-gui-script>
-EOF
-
-args=(--distribution "$DIST/distribution.xml" --resources "$DIST/resources" --package-path "$DIST/pkgs")
+args=(--distribution "$xml" --resources "$DIST/resources" --package-path "$DIST/pkgs")
 if [[ -n "$INSTALLER_ID" ]]; then args+=(--sign "$INSTALLER_ID" --timestamp); fi
 productbuild "${args[@]}" "$PKG"
 
