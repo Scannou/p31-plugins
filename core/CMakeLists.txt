@@ -1,5 +1,9 @@
 # Pure C++20, no platform or plugin-format dependencies.
-add_library(p31-core STATIC src/AudioRing.cpp)
+add_library(p31-core STATIC
+    src/AudioRing.cpp
+    src/scope/PhosphorBuffer.cpp
+    src/scope/StereoAnalysis.cpp
+)
 target_include_directories(p31-core PUBLIC include)
 target_link_libraries(p31-core PRIVATE p31-warnings)
 p31_cxx20(p31-core)
