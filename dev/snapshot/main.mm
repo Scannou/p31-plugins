@@ -13,7 +13,8 @@
 //  picks that item in the first settings pop-up that has it, as a click
 //  would. P31_DUMP_STATE=1 prints the saved state's text at the end.
 //  P31_DRAG=dx,dy drags the editor's resize grip by that many points (right,
-//  down); the host side resizes the window like a DAW does.
+//  down); the host side resizes the window like a DAW does. P31_ABOUT=1 opens
+//  the About dialog and saves that instead of the editor.
 //  signals: mix (default), mono, left, wide, antiphase, silence,
 //           sine (1 kHz at -6 dBFS), tones (100 Hz / 1 kHz / 10 kHz at -12 dBFS),
 //           white (white noise at -20 dBFS RMS),
@@ -336,8 +337,26 @@ int main(int argc, const char* argv[]) {
                 return 1;
             }
         }
+        const bool about = std::getenv("P31_ABOUT") != nullptr;
+        if (about) {
+            NSView* root = findResponder(window.contentView, @selector(showAbout));
+            if (!root) { std::fprintf(stderr, "no About\n"); return 1; }
+            [root performSelector:@selector(showAbout)];
+        }
         [[NSRunLoop mainRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:seconds]];
-        const bool ok = writePng(window.contentView, outPath);
+        bool ok = false;
+        if (about) {
+            // The dialog is a sheet: its own window, not layer-backed.
+            NSView* sheet = window.attachedSheet.contentView;
+            NSBitmapImageRep* rep = sheet ? [sheet bitmapImageRepForCachingDisplayInRect:sheet.bounds] : nil;
+            if (rep) {
+                [sheet cacheDisplayInRect:sheet.bounds toBitmapImageRep:rep];
+                ok = [[rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}] writeToFile:outPath
+                                                                                             atomically:YES];
+            }
+        } else {
+            ok = writePng(window.contentView, outPath);
+        }
 
         running.store(false);
         audio.join();
