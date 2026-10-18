@@ -4,5 +4,6 @@ p31_add_plugin(
     DISPLAY_NAME "P31 Scope"
     AU_SUBTYPE "P31V"
     ENTRY "${CMAKE_CURRENT_SOURCE_DIR}/src/Entry.cpp"
-    SOURCES src/ScopePlugin.cpp
+    SOURCES src/ScopePlugin.cpp src/ScopeEditor.mm
+    LINK p31-render-scope
 )

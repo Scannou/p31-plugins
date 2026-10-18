@@ -30,9 +30,9 @@ for entry in "${PLUGINS[@]}"; do
     run "clap-validator $name" tools/clap-validator validate "$OUT/$name.clap"
     run "vst3 validator $name" "$VST3_VALIDATOR" "$OUT/$name.vst3"
     run "auval $name" auval -strict -v aufx "$subtype" "$AU_MANUFACTURER"
-    run "pluginval VST3 $name" "$PLUGINVAL" --strictness-level 10 --skip-gui-tests \
+    run "pluginval VST3 $name" "$PLUGINVAL" --strictness-level 10 \
         --validate-in-process --validate "$OUT/$name.vst3"
-    run "pluginval AU $name" "$PLUGINVAL" --strictness-level 10 --skip-gui-tests \
+    run "pluginval AU $name" "$PLUGINVAL" --strictness-level 10 \
         --validate-in-process --validate "$HOME/Library/Audio/Plug-Ins/Components/$name.component"
 done
 

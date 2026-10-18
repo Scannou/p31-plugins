@@ -8,6 +8,7 @@
 #include <p31/core/DenormalGuard.h>
 #include <p31/core/PassThrough.h>
 
+#include <algorithm>
 #include <array>
 #include <cstdio>
 
@@ -16,6 +17,9 @@ namespace p31 {
 namespace {
     constexpr clap_id kInputPortId = 0;
     constexpr clap_id kOutputPortId = 1;
+
+    // host->name of clap-wrapper's standalone app.
+    constexpr const char* kStandaloneHostName = "CLAP-Wrapper-As-Standalone";
 
     // State blob: magic, format version, payload size (all little endian),
     // then the payload. Phase 1 has no payload; later versions append fields
@@ -71,16 +75,22 @@ PluginBase::PluginBase(const clap_plugin_descriptor* desc, const clap_host* host
     _plugin.on_main_thread = [](const clap_plugin*) {};
 }
 
+PluginBase::~PluginBase() = default;
+
 PluginBase* PluginBase::self(const clap_plugin* plugin) {
     return static_cast<PluginBase*>(plugin->plugin_data);
 }
 
-bool PluginBase::init() { return true; }
+bool PluginBase::init() {
+    _muteOutput = _host->name != nullptr && std::strcmp(_host->name, kStandaloneHostName) == 0;
+    return true;
+}
 
 void PluginBase::destroy() { delete this; }
 
 bool PluginBase::activate(double sampleRate, uint32_t minFrames, uint32_t maxFrames) {
     if (!onActivate(sampleRate, minFrames, maxFrames)) return false;
+    _sampleRate.store(sampleRate, std::memory_order_relaxed);
     _active = true;
     return true;
 }
@@ -101,10 +111,16 @@ clap_process_status PluginBase::process(const clap_process* proc) {
 
     const float* const* inData = in ? in->data32 : nullptr;
     const uint32_t inCount = (in && inData) ? in->channel_count : 0;
-    out.constant_mask = passThrough(inData, inCount, out.data32, out.channel_count, frames,
-                                    in ? in->constant_mask : 0);
-
+    // Before the pass-through: with in-place buffers a muted output would
+    // otherwise silence the input too.
     if (inCount > 0) analyze(inData, inCount, frames);
+
+    if (_muteOutput) {
+        out.constant_mask = passThrough(nullptr, 0, out.data32, out.channel_count, frames, 0);
+    } else {
+        out.constant_mask = passThrough(inData, inCount, out.data32, out.channel_count, frames,
+                                        in ? in->constant_mask : 0);
+    }
     return CLAP_PROCESS_CONTINUE;
 }
 
@@ -113,6 +129,7 @@ const void* PluginBase::getExtension(const char* id) {
     if (std::strcmp(id, CLAP_EXT_CONFIGURABLE_AUDIO_PORTS) == 0) return &s_configurablePorts;
     if (std::strcmp(id, CLAP_EXT_LATENCY) == 0) return &s_latency;
     if (std::strcmp(id, CLAP_EXT_STATE) == 0) return &s_state;
+    if (std::strcmp(id, CLAP_EXT_GUI) == 0 && hasEditor()) return &s_gui;
     return extension(id);
 }
 
@@ -199,6 +216,94 @@ bool PluginBase::loadState(const clap_istream* stream) {
 const clap_plugin_state PluginBase::s_state{
     [](const clap_plugin* p, const clap_ostream* s) { return self(p)->saveState(s); },
     [](const clap_plugin* p, const clap_istream* s) { return self(p)->loadState(s); },
+};
+
+#pragma mark - gui
+
+bool PluginBase::guiCreate(const char* api, bool isFloating) {
+    if (isFloating || std::strcmp(api, CLAP_WINDOW_API_COCOA) != 0 || _editor) return false;
+    if (_editorWidth == 0 || _editorHeight == 0) {
+        const EditorSizeLimits limits = editorSizeLimits();
+        _editorWidth = limits.defaultWidth;
+        _editorHeight = limits.defaultHeight;
+    }
+    _editor = createEditor(_editorWidth, _editorHeight);
+    return _editor != nullptr;
+}
+
+void PluginBase::guiDestroy() { _editor.reset(); }
+
+void PluginBase::guiClampSize(uint32_t& width, uint32_t& height) const {
+    const EditorSizeLimits limits = editorSizeLimits();
+    width = std::clamp(width, limits.minWidth, limits.maxWidth);
+    height = std::clamp(height, limits.minHeight, limits.maxHeight);
+}
+
+bool PluginBase::guiSetSize(uint32_t width, uint32_t height) {
+    guiClampSize(width, height);
+    _editorWidth = width;
+    _editorHeight = height;
+    if (_editor) _editor->setSize(width, height);
+    return true;
+}
+
+// macOS hosts size editors in points and the views follow the backing scale
+// themselves, so set_scale is declined (as the CLAP spec asks on macOS).
+const clap_plugin_gui PluginBase::s_gui{
+    [](const clap_plugin*, const char* api, bool isFloating) {
+        return !isFloating && std::strcmp(api, CLAP_WINDOW_API_COCOA) == 0;
+    },
+    [](const clap_plugin*, const char** api, bool* isFloating) {
+        *api = CLAP_WINDOW_API_COCOA;
+        *isFloating = false;
+        return true;
+    },
+    [](const clap_plugin* p, const char* api, bool isFloating) { return self(p)->guiCreate(api, isFloating); },
+    [](const clap_plugin* p) { self(p)->guiDestroy(); },
+    [](const clap_plugin*, double) { return false; },
+    [](const clap_plugin* p, uint32_t* width, uint32_t* height) {
+        const PluginBase* s = self(p);
+        if (s->_editorWidth == 0) {
+            const EditorSizeLimits limits = s->editorSizeLimits();
+            *width = limits.defaultWidth;
+            *height = limits.defaultHeight;
+        } else {
+            *width = s->_editorWidth;
+            *height = s->_editorHeight;
+        }
+        return true;
+    },
+    [](const clap_plugin*) { return true; },
+    [](const clap_plugin*, clap_gui_resize_hints* hints) {
+        hints->can_resize_horizontally = true;
+        hints->can_resize_vertically = true;
+        hints->preserve_aspect_ratio = false;
+        hints->aspect_ratio_width = 1;
+        hints->aspect_ratio_height = 1;
+        return true;
+    },
+    [](const clap_plugin* p, uint32_t* width, uint32_t* height) {
+        self(p)->guiClampSize(*width, *height);
+        return true;
+    },
+    [](const clap_plugin* p, uint32_t width, uint32_t height) { return self(p)->guiSetSize(width, height); },
+    [](const clap_plugin* p, const clap_window* window) {
+        PluginBase* s = self(p);
+        if (!s->_editor || std::strcmp(window->api, CLAP_WINDOW_API_COCOA) != 0) return false;
+        return s->_editor->attach(window->cocoa);
+    },
+    [](const clap_plugin*, const clap_window*) { return false; },
+    [](const clap_plugin*, const char*) {},
+    [](const clap_plugin* p) {
+        PluginBase* s = self(p);
+        if (s->_editor) s->_editor->setVisible(true);
+        return s->_editor != nullptr;
+    },
+    [](const clap_plugin* p) {
+        PluginBase* s = self(p);
+        if (s->_editor) s->_editor->setVisible(false);
+        return s->_editor != nullptr;
+    },
 };
 
 } // namespace p31

@@ -14,19 +14,25 @@ function(p31_cxx20 target)
 endfunction()
 
 # p31_add_plugin(NAME <name> ID <clap id> DISPLAY_NAME <name> AU_SUBTYPE <4cc>
-#                ENTRY <entry.cpp> SOURCES <impl sources...>)
+#                ENTRY <entry.cpp> SOURCES <impl sources...> [LINK <libs...>])
 #
 # Builds <NAME>-impl (static lib holding the whole plugin) and, through
 # clap-wrapper's make_clapfirst_plugins, <NAME>_clap/_vst3/_auv2/_standalone
 # plus the umbrella <NAME>_all target.
 function(p31_add_plugin)
-    cmake_parse_arguments(P "" "NAME;ID;DISPLAY_NAME;AU_SUBTYPE;ENTRY" "SOURCES" ${ARGN})
+    cmake_parse_arguments(P "" "NAME;ID;DISPLAY_NAME;AU_SUBTYPE;ENTRY" "SOURCES;LINK" ${ARGN})
 
     set(impl ${P_NAME}-impl)
     add_library(${impl} STATIC ${P_SOURCES})
-    target_link_libraries(${impl} PUBLIC p31-plugin-common PRIVATE p31-warnings)
+    # LINK libraries go in PRIVATE: the render libraries carry sources, which
+    # must compile into this impl only, not again into every format target.
+    target_link_libraries(${impl} PUBLIC p31-plugin-common PRIVATE ${P_LINK} p31-warnings)
     p31_cxx20(${impl})
+    target_compile_options(${impl} PRIVATE $<$<COMPILE_LANGUAGE:OBJCXX>:-fobjc-arc>)
+    # Per-plugin, per-version suffix for Objective-C class names (ObjCNames.h).
+    string(MAKE_C_IDENTIFIER "${P_DISPLAY_NAME}_${PROJECT_VERSION}" objc_suffix)
     target_compile_definitions(${impl} PRIVATE
+        P31_OBJC_SUFFIX=${objc_suffix}
         P31_PLUGIN_ID="${P_ID}"
         P31_PLUGIN_NAME="${P_DISPLAY_NAME}"
         P31_VERSION="${PROJECT_VERSION}"
