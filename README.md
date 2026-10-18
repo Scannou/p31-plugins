@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/brand/p31-logo/readme/p31-lockup-dark.svg">
+  <img alt="P31" src="assets/brand/p31-logo/readme/p31-lockup-light.svg" height="48">
+</picture>
+
 # p31-plugins
 
 Audio analyzer plugins for macOS, ported from the foobar2000 components in

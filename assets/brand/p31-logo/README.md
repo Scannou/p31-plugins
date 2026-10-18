@@ -27,3 +27,9 @@ lower alpha).
 
 Keep at least the mark's ring radius × 0.25 of clear space around the lockup;
 don't stretch, rotate, or add a second colour.
+
+## readme/
+
+`p31-lockup-dark.svg` and `p31-lockup-light.svg`: the outline lockup with the
+colour filled in (`#4CFF7C` and `#1B8A3A`), for the project README. GitHub
+shows SVGs as images, where `currentColor` would come out black.
