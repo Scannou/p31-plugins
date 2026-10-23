@@ -110,6 +110,7 @@ struct SpectrumSettings {
     // Appearance
     bool showDbGuides = true;
     bool showFreqAxis = true;
+    bool showLegend = true;        // Live / Peak hold key in Curve mode
     int  gridOpacity = 60;         // 0-100
     int  appearance = AppearanceAuto;
     int  theme = 14;               // index into kThemes (P7 blue); 0 = custom colors
@@ -199,6 +200,7 @@ void visitFields(SpectrumSettings& s, Visitor&& v) {
     v("range_db", s.rangeDb);
     v("show_db_guides", s.showDbGuides);
     v("show_freq_axis", s.showFreqAxis);
+    v("show_legend", s.showLegend);
     v("grid_opacity", s.gridOpacity);
     v("appearance", s.appearance);
     v("theme", s.theme);

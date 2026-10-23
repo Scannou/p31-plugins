@@ -121,7 +121,7 @@ TEST_CASE("Keys are stable") {
     visitFields(a, scopeKeys);
     visitFields(b, spectrumKeys);
     CHECK(scopeKeys.count == 33);
-    CHECK(spectrumKeys.count == 36);
+    CHECK(spectrumKeys.count == 37);   // + show_legend
     CHECK(scopeKeys.keys.count("persistence_ms") == 1);
     CHECK(scopeKeys.keys.count("dark.band_high") == 1);
     CHECK(spectrumKeys.keys.count("peak_fall_db_s") == 1);

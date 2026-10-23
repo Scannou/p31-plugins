@@ -207,6 +207,7 @@ private:
         const double sampleRate = _plugin.currentSampleRate();
         if (sampleRate > 0) {
             _analyzer.setSampleRate(sampleRate);
+            [_view setSampleRate:sampleRate];
             const auto maxFrames = std::min(kMaxFramesPerTick,
                                             static_cast<size_t>(std::ceil(sampleRate * kMaxWindowSeconds)));
             const size_t frames = _reader.readNew(_lr.data(), maxFrames).frames;
@@ -316,13 +317,26 @@ Form SpectrumEditor::buildForm() {
         f.push_back(popup("Range", ranges, [p] { return p->rangeDb; }, [p](int v) { p->rangeDb = v; },
                           "dB from the top of the display to the bottom"));
     }
-    f.push_back(checkbox("Show peaks", [p] { return p->peakHold; }, [p](bool v) { p->peakHold = v; },
-                         "Peak caps in Bars mode, a peak line in Curve mode"));
+    // Color bars alone draw no line: no peak line and no legend either.
+    const auto peaksDrawn = [p] { return !p->colorBarsOnly(); };
+    {
+        Row r = checkbox("Show peaks", [p] { return p->peakHold; }, [p](bool v) { p->peakHold = v; },
+                         "Peak caps in Bars mode, a peak line in Curve mode; not drawn with color bars alone");
+        r.enabled = peaksDrawn;
+        f.push_back(r);
+    }
     f.push_back(checkbox("Shadow fill", [p] { return p->shadowFill; }, [p](bool v) { p->shadowFill = v; },
                          "Dim, slow-falling fill behind the levels"));
     f.push_back(checkbox("Show dB scale", [p] { return p->showDbGuides; }, [p](bool v) { p->showDbGuides = v; }));
     f.push_back(checkbox("Show frequency axis", [p] { return p->showFreqAxis; }, [p](bool v) { p->showFreqAxis = v; },
                          "Frequency gridlines and labels (in Bars mode, each bar's centre frequency)"));
+    {
+        Row r = checkbox("Show legend", [p] { return p->showLegend; }, [p](bool v) { p->showLegend = v; },
+                         "The Live / Peak hold key in the plot's top-left corner");
+        r.visible = curve;
+        r.enabled = peaksDrawn;
+        f.push_back(r);
+    }
 
     f.push_back(section("Analysis"));
     {
@@ -380,15 +394,15 @@ Form SpectrumEditor::buildForm() {
         Row r = slider("Peak fall", kMinPeakFallDbPerSec, kMaxPeakFallDbPerSec, [p] { return p->peakFallDbPerSec; },
                        [p](double v) { p->peakFallDbPerSec = static_cast<int>(v); },
                        [](double v) { return fmt("%.0f dB/s", v); }, "How fast peaks fall after their hold");
-        r.enabled = [p] { return p->peakHold; };
+        r.enabled = [p] { return p->peakHold && !p->colorBarsOnly(); };
         f.push_back(r);
     }
     {
-        Row r = slider("Peak hold", 0, 2000, [p] { return p->peakHoldMs; },
+        Row r = slider("Peak hold", 0, kMaxPeakHoldMs, [p] { return p->peakHoldMs; },
                        [p](double v) { p->peakHoldMs = static_cast<int>(v); },
                        [](double v) { return fmt("%.0f ms", v); }, "How long a peak stays before it falls");
         r.step = 10;
-        r.enabled = [p] { return p->peakHold; };
+        r.enabled = [p] { return p->peakHold && !p->colorBarsOnly(); };
         f.push_back(r);
     }
 

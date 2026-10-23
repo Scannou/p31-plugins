@@ -3,8 +3,8 @@
 //  p31-render (ported from foo_jl_spectrum_mac SpectrumView.h)
 //
 //  Core Graphics view that draws the spectrum as bars or a curve, with the
-//  shadow layer, peak caps or line, dB guides and frequency labels. Hold the
-//  left mouse button to read the frequency under the cursor. Objective-C++
+//  shadow layer, peak caps or line, dB guides and frequency labels. Hover
+//  to read the frequency, note and level under the cursor. Objective-C++
 //  only.
 //
 
@@ -25,6 +25,10 @@ NS_ASSUME_NONNULL_BEGIN
 // kCurvePointPitch points along the frequency axis, otherwise ("Auto" bars)
 // one bar per kAutoBarPitch points.
 - (NSInteger)autoBarCount;
+
+// Sample rate of the audio shown. The analyzer stops at half of it, and so do
+// the frequency grid, labels and readout.
+- (void)setSampleRate:(double)rate;
 
 // Latest bar levels, shadow fill, peak positions and, in Mid + side mode,
 // the side channel (NULL otherwise); each 0..1 with `count` entries.
