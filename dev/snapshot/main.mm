@@ -345,6 +345,10 @@ int main(int argc, const char* argv[]) {
             if (!root) { std::fprintf(stderr, "no About\n"); return 1; }
             [root performSelector:@selector(showAbout)];
         }
+        // The view drops a hover the real mouse is not over (after layout, a
+        // window change), so the simulated one is sent again before capture.
+        NSView* hoverTarget = nil;
+        NSEvent* hoverMove = nil;
         if (const char* hover = std::getenv("P31_HOVER")) {
             double fx = 0, fy = 0;
             NSView* target = findViewOfClass(window.contentView, @"P31SpectrumView");
@@ -365,8 +369,15 @@ int main(int argc, const char* argv[]) {
                                                pressure:0];
             // Keep the readout where it is while the audio plays.
             [target mouseMoved:move];
+            hoverTarget = target;
+            hoverMove = move;
         }
-        [[NSRunLoop mainRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:seconds]];
+        constexpr double kSettle = 0.1;   // a frame or two to draw the re-sent hover
+        [[NSRunLoop mainRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:std::max(0.0, seconds - kSettle)]];
+        if (hoverTarget) {
+            [hoverTarget mouseMoved:hoverMove];
+            [[NSRunLoop mainRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:kSettle]];
+        }
         bool ok = false;
         if (about) {
             // The dialog is a sheet: its own window, not layer-backed.
