@@ -6,6 +6,7 @@ add_executable(p31-core-tests
     StateCodecTests.cpp
     scope/PhosphorBufferTests.cpp
     scope/ScopeLayoutTests.cpp
+    scope/ScopeSettingsTests.cpp
     scope/StereoAnalysisTests.cpp
     spectrum/BandMapTests.cpp
     spectrum/FftTests.cpp

@@ -44,6 +44,7 @@ void ScopePlugin::analyze(const float* const* channels, uint32_t channelCount, u
 
 void ScopePlugin::setSettings(const p31::scope::ScopeSettings& settings) {
     _settings = settings.sanitized();
+    _settings.theme = p31::scope::themeMatching(_settings);
     settingsEdited();
 }
 
@@ -55,6 +56,8 @@ void ScopePlugin::decodeSettings(std::string_view text) {
     p31::scope::ScopeSettings s;
     p31::decodeSettings(text, s);
     _settings = s.sanitized();
+    // The stored index may come from the older theme list; the colors decide.
+    _settings.theme = p31::scope::themeMatching(_settings);
 }
 
 std::unique_ptr<p31::Editor> ScopePlugin::createEditor(uint32_t width, uint32_t height) {
