@@ -27,7 +27,7 @@ double freqScaleHz(int scale, double pos) {
 }
 
 float magnitudeToDisplay(float magnitude, float topDb, float rangeDb) {
-    if (magnitude <= 1e-7f) return 0.0f;
+    if (!(magnitude > 1e-7f)) return 0.0f;   // also NaN
     const float db = 20.0f * std::log10(magnitude);
     return std::clamp((db - (topDb - rangeDb)) / rangeDb, 0.0f, 1.0f);
 }
@@ -65,7 +65,8 @@ void BandMap::build(const Config& config) {
         const double f1 = hzAt(static_cast<double>(i + 1) / bands);
         const double fc = hzAt((static_cast<double>(i) + 0.5) / bands);
 
-        int lo = static_cast<int>(std::floor(f0 / hzPerBin));
+        // The bins whose centre (b * hzPerBin) lies in [f0, f1).
+        int lo = static_cast<int>(std::ceil(f0 / hzPerBin));
         int hi = static_cast<int>(std::ceil(f1 / hzPerBin)) - 1;
         // Every band covers at least one bin and stays in range. The DC skip
         // comes before hi is raised to lo: a band entirely below bin 1 would

@@ -299,3 +299,62 @@ TEST_CASE("Default colors are the P7 phosphor theme, phosphors listed first") {
     std::sort(order.begin(), order.end());
     for (int i = 0; i < kThemeCount; ++i) CHECK(order[static_cast<size_t>(i)] == i);   // every theme once
 }
+
+TEST_CASE("A NaN in the input does not blank the display") {
+    SpectrumAnalyzer a;
+    a.configure(baseSettings(SmoothingRms));
+    a.setSampleRate(kRate);
+    std::vector<float> bad(2 * 512, 0.0f);
+    bad[10] = std::nanf("");
+    a.process(bad.data(), 512);
+    a.tick(1.0 / 60.0);
+    Driver d{a};
+    d.amplitude = 0.5f;
+    d.run(1.0);
+    for (float v : a.bars()) REQUIRE(std::isfinite(v));
+    CHECK(maxOf(a.bars()) > 0.8f);
+}
+
+TEST_CASE("With peaks off there is no peak line") {
+    SpectrumAnalyzer::Settings s = baseSettings(SmoothingAttackDecay);
+    s.peakHold = false;
+    SpectrumAnalyzer a;
+    a.configure(s);
+    a.setSampleRate(kRate);
+    Driver d{a};
+    d.run(0.5);
+    CHECK(maxOf(a.bars()) > 0.5f);
+    CHECK(maxOf(a.peaks()) == 0.0f);
+}
+
+TEST_CASE("Peak hold is capped at 2 s, and color bars alone keep no peaks") {
+    SpectrumAnalyzer::Settings s = baseSettings(SmoothingRms);
+    s.peakHoldSec = 10.0f;
+    SpectrumAnalyzer a;
+    a.configure(s);
+    CHECK(a.settings().peakHoldSec == SpectrumAnalyzer::kMaxPeakHoldSec);
+
+    SpectrumSettings u;
+    u.peakHoldMs = 5000;
+    CHECK(u.sanitized().peakHoldMs == kMaxPeakHoldMs);
+    u.drawMode = DrawModeCurve;
+    u.curveStyle = CurveStyleColorBars;
+    CHECK_FALSE(analyzerSettings(u, 100).peakHold);
+    u.curveStyle = CurveStyleLineColorBars;
+    CHECK(analyzerSettings(u, 100).peakHold);
+}
+
+TEST_CASE("Once silent and settled, ticks do nothing until audio returns") {
+    SpectrumAnalyzer a;
+    a.configure(baseSettings(SmoothingRms));
+    a.setSampleRate(kRate);
+    Driver d{a};
+    d.run(0.5);
+    d.run(8.0, 1.0 / 60.0, false);
+    CHECK_FALSE(a.isActive());
+    CHECK_FALSE(a.tick(1.0 / 60.0));
+    CHECK(maxOf(a.bars()) == 0.0f);
+    d.run(0.5);
+    CHECK(a.isActive());
+    CHECK(maxOf(a.bars()) > 0.8f);
+}

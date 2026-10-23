@@ -152,3 +152,34 @@ TEST_CASE("configure rejects bad sizes and keeps the old setup") {
     CHECK(stft.config().fftSize == 1024);
     CHECK(stft.binCount() == 512);
 }
+
+TEST_CASE("A DC offset does not leak into the low bins") {
+    Stft stft;
+    Stft::Config c;
+    c.fftSize = 4096;
+    c.hop = 4096;
+    REQUIRE(stft.configure(c));
+    // A quiet 1 kHz tone riding on a large offset: without the mean removed
+    // the window spreads the offset over the first bins, reading as bass.
+    auto lr = stereoSine(4096, 1000.0, 48000.0, 0.01f, 0.01f);
+    for (float& v : lr) v += 0.5f;
+    stft.feed(lr.data(), 4096, [&](const float* mid, const float*) {
+        for (size_t k = 1; k <= 4; ++k) CHECK(mid[k] < 1e-10f);   // under -100 dB
+    });
+}
+
+TEST_CASE("NaN and absurd samples read as silence") {
+    Stft stft;
+    Stft::Config c;
+    c.fftSize = 1024;
+    c.hop = 1024;
+    REQUIRE(stft.configure(c));
+    auto lr = stereoSine(1024, 32 * 48000.0 / 1024, 48000.0, 1.0f, 1.0f);
+    lr[100] = std::nanf("");
+    lr[201] = INFINITY;
+    lr[300] = 1e6f;
+    stft.feed(lr.data(), 1024, [&](const float* mid, const float*) {
+        for (size_t k = 0; k < stft.binCount(); ++k) REQUIRE(std::isfinite(mid[k]));
+        CHECK(mid[32] == doctest::Approx(1.0).epsilon(0.02));
+    });
+}

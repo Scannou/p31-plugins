@@ -85,6 +85,7 @@ private:
     std::unique_ptr<RealFft> _fft;
     std::vector<float> _window;
     float _powerScale = 0.0f;
+    float _windowSum = 0.0f;
     std::vector<float> _mid, _side;   // circular histories, fftSize each
     size_t _writeIndex = 0;
     size_t _untilHop = 0;

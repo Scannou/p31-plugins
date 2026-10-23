@@ -224,3 +224,24 @@ TEST_CASE("Sub-bin interpolation is smooth and never overshoots its bins") {
     const float slope = (out[below + 1] - out[below]) / (map.centreBin(below + 1) - map.centreBin(below));
     CHECK(std::fabs(slope) < 0.25f * binSlope);
 }
+
+TEST_CASE("NaN magnitudes read as the floor") {
+    CHECK(magnitudeToDisplay(std::nanf(""), 0.0f, 90.0f) == 0.0f);
+}
+
+TEST_CASE("Wide bands read only the bins whose centre lies inside them") {
+    for (int scale : {FreqScaleLog, FreqScaleLinear, FreqScaleSoftLog}) {
+        CAPTURE(scale);
+        BandMap map;
+        map.build(config(scale, 32));
+        const double hzPerBin = 48000.0 / 4096;
+        const double lo = freqScalePos(scale, 20.0), hi = freqScalePos(scale, 20000.0);
+        for (int i = 0; i < map.bandCount(); ++i) {
+            if (map.centreBin(i) >= 0) continue;   // narrower than a bin: interpolated
+            const double f0 = freqScaleHz(scale, lo + (hi - lo) * i / 32.0);
+            const double f1 = freqScaleHz(scale, lo + (hi - lo) * (i + 1) / 32.0);
+            CHECK(map.lowBin(i) * hzPerBin >= f0 - 1e-9);
+            CHECK(map.highBin(i) * hzPerBin < f1);
+        }
+    }
+}

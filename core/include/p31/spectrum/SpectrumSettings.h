@@ -61,7 +61,7 @@ constexpr int    kMaxRmsMs = 500;
 constexpr int    kMaxSlopeTenths = 60;
 constexpr int    kMinPeakFallDbPerSec = 1;
 constexpr int    kMaxPeakFallDbPerSec = 60;
-constexpr int    kMaxPeakHoldMs = 5000;
+constexpr int    kMaxPeakHoldMs = 2000;    // the peak history grows with the hold time
 constexpr int    kMinTopDb = -60;
 constexpr int    kMaxTopDb = 0;
 constexpr int    kRangeDbChoices[] = {60, 80, 90, 120};
@@ -156,6 +156,9 @@ struct SpectrumSettings {
 
     // The bar count follows the view size ("Auto" bars, or Curve mode).
     bool viewSizedBars() const { return barCount == kBarCountAuto || drawMode == DrawModeCurve; }
+
+    // Curve mode with color bars and no line: no peak line and no legend.
+    bool colorBarsOnly() const { return drawMode == DrawModeCurve && curveStyle == CurveStyleColorBars; }
 };
 
 // Every field with its state key, for StateWriter / StateReader.
@@ -238,6 +241,7 @@ inline SpectrumAnalyzer::Settings analyzerSettings(const SpectrumSettings& setti
     }
     s.peakFall = static_cast<float>(u.peakFallDbPerSec / 60.0 / u.rangeDb);
     s.peakHoldSec = static_cast<float>(u.peakHoldMs / 1000.0);
+    s.peakHold = u.peakHold && !u.colorBarsOnly();   // nothing drawn: keep no history
     return s;
 }
 

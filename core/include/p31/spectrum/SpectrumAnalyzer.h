@@ -50,10 +50,13 @@ public:
         float  shadowFall = 0.012f;     // shadow linear fall per frame
         float  peakFall = 0.0025f;      // peak line linear fall per frame, after its hold
         float  peakHoldSec = 0.4f;      // how long a peak holds before falling
+        bool   peakHold = true;         // keep the peak line; off: no peak history
     };
 
     static constexpr int kMinBarCount = 4;
     static constexpr int kMaxBarCount = 2048;
+    // The peak history grows with the hold time.
+    static constexpr float kMaxPeakHoldSec = 2.0f;
 
     SpectrumAnalyzer();
 

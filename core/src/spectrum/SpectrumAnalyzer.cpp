@@ -58,7 +58,7 @@ void SpectrumAnalyzer::configure(const Settings& settings) {
     s.octaveFraction = std::max(s.octaveFraction, 0);
     s.shadowFall = std::max(s.shadowFall, 0.0005f);
     s.peakFall = std::max(s.peakFall, 0.0001f);
-    s.peakHoldSec = std::max(s.peakHoldSec, 0.0f);
+    s.peakHoldSec = std::clamp(s.peakHoldSec, 0.0f, kMaxPeakHoldSec);
     s.rangeDb = std::max(s.rangeDb, 10.0f);
 
     if (first || s.fftSize != old.fftSize || s.window != old.window || s.side != old.side) {
@@ -240,12 +240,15 @@ void SpectrumAnalyzer::updatePeaks(double dtSec) {
         _peakTimes.pop_front();
     }
 
+    // Entry by entry across all bars rather than bar by bar across the ring:
+    // contiguous inner loops the compiler vectorises, over up to bars x
+    // entries-in-the-hold-window values per frame.
     const float qFall = static_cast<float>(std::max(0.0, (_clock - hold) - _peakQTime) * fallPerSec);
-    for (size_t i = 0; i < n; ++i) {
-        float p = _peakQ[i] - qFall;
-        for (const std::vector<float>& v : _peakRing) p = std::max(p, v[i]);
-        _peaks[i] = std::max(p, 0.0f);
+    for (size_t i = 0; i < n; ++i) _peaks[i] = _peakQ[i] - qFall;
+    for (const std::vector<float>& v : _peakRing) {
+        for (size_t i = 0; i < n; ++i) _peaks[i] = std::max(_peaks[i], v[i]);
     }
+    for (size_t i = 0; i < n; ++i) _peaks[i] = std::max(_peaks[i], 0.0f);
 }
 
 void SpectrumAnalyzer::clearPeakHistory() {
@@ -269,8 +272,21 @@ bool SpectrumAnalyzer::tick(double dt) {
     const float decayKeep = std::pow(0.60f + 0.39f * s, frames);    // ~0.60 .. 0.99 per frame
     const float attackKeep = std::pow(0.10f + 0.50f * s, frames);   // ~0.10 .. 0.60 per frame
 
-    if (_bandsDirty) rebuildBands();
     const bool live = _live;
+    // No audio, and everything has fallen off the display: skip the per-frame
+    // work until audio returns. The averaged spectrum is below the display by
+    // now, so it restarts from silence.
+    if (!live && !_active) {
+        std::fill(_binPow.begin(), _binPow.end(), 0.0f);
+        std::fill(_binPowSide.begin(), _binPowSide.end(), 0.0f);
+        std::fill(_tickMax.begin(), _tickMax.end(), 0.0f);
+        std::fill(_tickMaxSide.begin(), _tickMaxSide.end(), 0.0f);
+        clearPeakHistory();
+        _fresh = false;
+        return false;
+    }
+
+    if (_bandsDirty) rebuildBands();
     updateLayer(_bars, _target, _binPow, _tickMax, live, attackKeep, decayKeep, step);
     if (_settings.side) updateLayer(_sideBars, _targetSide, _binPowSide, _tickMaxSide, live, attackKeep, decayKeep, step);
     _fresh = false;
@@ -288,7 +304,14 @@ bool SpectrumAnalyzer::tick(double dt) {
             _shadow[i] = std::max(_shadow[i] - shadowFall, b);
         }
     }
-    updatePeaks(step);
+    if (_settings.peakHold) {
+        updatePeaks(step);
+    } else {
+        // Not drawn: keep nothing that would hold the display awake.
+        _clock += step;
+        clearPeakHistory();
+        std::fill(_peaks.begin(), _peaks.end(), 0.0f);
+    }
 
     bool active = false;
     for (size_t i = 0; i < bars && !active; ++i) active = _bars[i] > 0.0f || _shadow[i] > 0.0f || _peaks[i] > 0.0f;
