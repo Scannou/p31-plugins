@@ -6,6 +6,7 @@
 #import "p31/render/Menus.h"
 
 #import "p31/render/Logo.h"
+#import "p31/render/ThemeColor.h"
 
 #include <filesystem>
 #include <memory>
@@ -108,10 +109,8 @@ void showAbout(const AboutInfo& info, NSView* anchor) {
     NSAppearanceName match = [(anchor ? anchor.effectiveAppearance : NSApp.effectiveAppearance)
         bestMatchFromAppearancesWithNames:@[NSAppearanceNameAqua, NSAppearanceNameDarkAqua]];
     const uint32_t argb = [match isEqualToString:NSAppearanceNameDarkAqua] ? info.darkColor : info.lightColor;
-    NSColor* color = [NSColor colorWithSRGBRed:((argb >> 16) & 0xFF) / 255.0
-                                         green:((argb >> 8) & 0xFF) / 255.0
-                                          blue:(argb & 0xFF) / 255.0
-                                         alpha:1.0];
+    // The theme's main colour, in Display P3 like the views draw it.
+    NSColor* color = colorFromARGB(argb | 0xFF000000u);
 
     NSAlert* alert = [[NSAlert alloc] init];
     alert.icon = logoImage(LogoKind::Mark, 64.0, color);

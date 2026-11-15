@@ -6,6 +6,7 @@
 #import "p31/render/Logo.h"
 
 #include "p31/render/LogoData.h"
+#import "p31/render/ThemeColor.h"
 
 #include <algorithm>
 #include <cctype>
@@ -18,13 +19,6 @@
 namespace p31::ui {
 
 namespace {
-
-NSColor* colorFromARGB(uint32_t argb) {
-    return [NSColor colorWithSRGBRed:((argb >> 16) & 0xFF) / 255.0
-                               green:((argb >> 8) & 0xFF) / 255.0
-                                blue:(argb & 0xFF) / 255.0
-                               alpha:((argb >> 24) & 0xFF) / 255.0];
-}
 
 // Numbers and commands of an SVG path's d attribute.
 class PathReader {

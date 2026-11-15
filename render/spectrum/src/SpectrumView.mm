@@ -5,6 +5,8 @@
 
 #import "p31/render/SpectrumView.h"
 
+#import "p31/render/ThemeColor.h"
+
 #include <p31/spectrum/BandMap.h>
 
 #include <algorithm>
@@ -150,11 +152,37 @@ using namespace p31::spectrum;
 template <class T>
 static T *orElse(T *a, T *b) { return a != nil ? a : b; }
 
-static NSColor *colorFromARGB(uint32_t argb) {
-    return [NSColor colorWithSRGBRed:((argb >> 16) & 0xFF) / 255.0
-                               green:((argb >> 8) & 0xFF) / 255.0
-                                blue:(argb & 0xFF) / 255.0
-                               alpha:((argb >> 24) & 0xFF) / 255.0];
+// Theme colours are Display P3 (ThemeColor.h).
+using p31::ui::colorFromARGB;
+
+// Mix in Display P3. blendedColorWithFraction: may convert to a
+// standard-gamut space first, which would clip saturated theme colours.
+// nil when it cannot convert the colors.
+static NSColor *blendP3(NSColor *a, CGFloat fraction, NSColor *b) {
+    NSColorSpace *p3 = [NSColorSpace displayP3ColorSpace];
+    NSColor *x = [a colorUsingColorSpace:p3], *y = [b colorUsingColorSpace:p3];
+    if (!x || !y) return nil;
+    const CGFloat t = fraction < 0 ? 0 : (fraction > 1 ? 1 : fraction);
+    return [NSColor colorWithDisplayP3Red:x.redComponent + (y.redComponent - x.redComponent) * t
+                                    green:x.greenComponent + (y.greenComponent - x.greenComponent) * t
+                                     blue:x.blueComponent + (y.blueComponent - x.blueComponent) * t
+                                    alpha:x.alphaComponent + (y.alphaComponent - x.alphaComponent) * t];
+}
+
+// HSB colour built in sRGB terms, its numbers then read as Display P3 like
+// every other theme colour. nil when it cannot be converted.
+static NSColor *hueColorP3(CGFloat h, CGFloat s, CGFloat b) {
+    NSColor *rgb = [[NSColor colorWithHue:h saturation:s brightness:b alpha:1.0]
+                    colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
+    if (!rgb) return nil;
+    return [NSColor colorWithDisplayP3Red:rgb.redComponent green:rgb.greenComponent blue:rgb.blueComponent alpha:1.0];
+}
+
+// Two-colour gradient interpolated in Display P3.
+static NSGradient *gradientP3(NSColor *from, NSColor *to) {
+    const CGFloat locations[2] = {0.0, 1.0};
+    return [[NSGradient alloc] initWithColors:@[from, to] atLocations:locations
+                                   colorSpace:[NSColorSpace displayP3ColorSpace]];
 }
 
 - (NSColor *)barColor {
@@ -168,12 +196,12 @@ static NSColor *colorFromARGB(uint32_t argb) {
 // Side-channel line: the bar colour's complementary hue, so it reads as a
 // separate signal in every theme.
 - (NSColor *)sideColor {
-    NSColor *c = [[self barColor] colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
+    NSColor *c = [[self barColor] colorUsingColorSpace:[NSColorSpace displayP3ColorSpace]];
     if (!c) return [NSColor systemOrangeColor];
     CGFloat h, s, b, a;
     [c getHue:&h saturation:&s brightness:&b alpha:&a];
     h += 0.5; if (h >= 1.0) h -= 1.0;
-    return [NSColor colorWithHue:h saturation:MAX(s, 0.55) brightness:MAX(b, 0.75) alpha:1.0];
+    return orElse(hueColorP3(h, MAX(s, 0.55), MAX(b, 0.75)), [NSColor systemOrangeColor]);
 }
 
 - (void)drawSideLine {
@@ -201,22 +229,22 @@ static NSColor *colorFromARGB(uint32_t argb) {
     // white, or to black on a light background. Opacity 0 still hides the
     // whole grid, labels included.
     if (_gridOpacity <= 0) return [NSColor clearColor];
-    NSColor *bg = [[self bgColor] colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
+    NSColor *bg = [[self bgColor] colorUsingColorSpace:[NSColorSpace displayP3ColorSpace]];
     if (!bg) return NSColor.secondaryLabelColor;
-    return orElse([bg blendedColorWithFraction:0.62 ofColor:[self inkColor]], NSColor.secondaryLabelColor);
+    return orElse(blendP3(bg, 0.62, [self inkColor]), NSColor.secondaryLabelColor);
 }
 
 // Labels at the decades (100, 1k, 10k), brighter so they are easy to find.
 - (NSColor *)decadeLabelColor {
     if (_gridOpacity <= 0) return [NSColor clearColor];
-    NSColor *bg = [[self bgColor] colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
+    NSColor *bg = [[self bgColor] colorUsingColorSpace:[NSColorSpace displayP3ColorSpace]];
     if (!bg) return NSColor.labelColor;
-    return orElse([bg blendedColorWithFraction:0.92 ofColor:[self inkColor]], NSColor.labelColor);
+    return orElse(blendP3(bg, 0.92, [self inkColor]), NSColor.labelColor);
 }
 
 // White on a dark background, black on a light one.
 - (NSColor *)inkColor {
-    NSColor *bg = [[self bgColor] colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
+    NSColor *bg = [[self bgColor] colorUsingColorSpace:[NSColorSpace displayP3ColorSpace]];
     if (!bg) return NSColor.labelColor;
     const CGFloat luminance = 0.2126 * bg.redComponent + 0.7152 * bg.greenComponent + 0.0722 * bg.blueComponent;
     return luminance < 0.5 ? NSColor.whiteColor : NSColor.blackColor;
@@ -427,10 +455,10 @@ static const CGFloat kPeakLineAlpha = 0.45;
 
     NSColor *base = [self barColor];
     const BOOL dark = [self isDarkAppearance];
-    // blendedColorWithFraction: returns nil when it cannot convert the colors.
-    NSColor *shadowColor = orElse([base blendedColorWithFraction:0.6 ofColor:[NSColor grayColor]], base);
-    NSColor *capColor = orElse(dark ? [base blendedColorWithFraction:0.7 ofColor:[NSColor whiteColor]]
-                                    : [base blendedColorWithFraction:0.5 ofColor:[NSColor blackColor]],
+    // blendP3 returns nil when it cannot convert the colors.
+    NSColor *shadowColor = orElse(blendP3(base, 0.6, [NSColor grayColor]), base);
+    NSColor *capColor = orElse(dark ? blendP3(base, 0.7, [NSColor whiteColor])
+                                    : blendP3(base, 0.5, [NSColor blackColor]),
                                base);
 
     if (_drawMode == DrawModeCurve) {
@@ -494,9 +522,9 @@ static const CGFloat kPeakLineAlpha = 0.45;
     }
 
     if (_barStyle == BarStyleGradient) {
-        NSColor *lo = orElse([base blendedColorWithFraction:0.55 ofColor:[NSColor blackColor]], base);
-        NSColor *hi = orElse([base blendedColorWithFraction:0.25 ofColor:[NSColor whiteColor]], base);
-        NSGradient *grad = [[NSGradient alloc] initWithStartingColor:lo endingColor:hi];
+        NSColor *lo = orElse(blendP3(base, 0.55, [NSColor blackColor]), base);
+        NSColor *hi = orElse(blendP3(base, 0.25, [NSColor whiteColor]), base);
+        NSGradient *grad = gradientP3(lo, hi);
         const CGFloat angle = _vertical ? 0.0 : 90.0;  // along the magnitude axis
         for (NSInteger i = 0; i < n; ++i) {
             const CGFloat bv = clamp01(_bars[i]);
@@ -510,7 +538,8 @@ static const CGFloat kPeakLineAlpha = 0.45;
             if (bv * _pMag < 1.0) continue;
             CGFloat h = 0.66 - 0.75 * (CGFloat)i / (CGFloat)MAX(1, n - 1);
             if (h < 0) h = 0;
-            NSColor *c = [NSColor colorWithHue:h saturation:0.85 brightness:brightness alpha:1.0];
+            NSColor *c = hueColorP3(h, 0.85, brightness);
+            if (!c) continue;
             CGContextSetFillColorWithColor(ctx, c.CGColor);
             CGContextFillRect(ctx, barRect(i, bv));
         }
@@ -575,9 +604,7 @@ static const CGFloat kPeakLineAlpha = 0.45;
         CGContextRestoreGState(ctx);
     } else if (_curveStyle == CurveStyleFilled) {
         NSBezierPath *area = [self areaPathForValues:_bars];
-        NSGradient *grad = [[NSGradient alloc]
-            initWithStartingColor:[base colorWithAlphaComponent:0.10]
-                      endingColor:[base colorWithAlphaComponent:0.65]];
+        NSGradient *grad = gradientP3([base colorWithAlphaComponent:0.10], [base colorWithAlphaComponent:0.65]);
         [grad drawInBezierPath:area angle:(_vertical ? 0.0 : 90.0)];
     }
     [self drawSideLine];
@@ -644,8 +671,8 @@ static CGFloat colorBarStrength(CGFloat level) {
 - (void)drawColorBarsColor:(NSColor *)color context:(CGContextRef)ctx {
     const size_t n = _bars.size();
     if (n == 0) return;
-    NSColorSpace *srgb = [NSColorSpace sRGBColorSpace];
-    NSColor *h = [color colorUsingColorSpace:srgb];
+    NSColorSpace *p3 = [NSColorSpace displayP3ColorSpace];
+    NSColor *h = [color colorUsingColorSpace:p3];
     if (!h) return;
     const CGFloat h3[3] = {h.redComponent, h.greenComponent, h.blueComponent};
 
@@ -657,7 +684,7 @@ static CGFloat colorBarStrength(CGFloat level) {
         comps[i * 4 + 3] = a;
         locs[i] = ((CGFloat)i + 0.5) / (CGFloat)n;
     }
-    CGGradientRef grad = CGGradientCreateWithColorComponents(srgb.CGColorSpace, comps.data(), locs.data(), n);
+    CGGradientRef grad = CGGradientCreateWithColorComponents(p3.CGColorSpace, comps.data(), locs.data(), n);
     if (!grad) return;
 
     CGContextSaveGState(ctx);

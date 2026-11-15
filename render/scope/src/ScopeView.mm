@@ -5,6 +5,8 @@
 
 #import "p31/render/ScopeView.h"
 
+#import "p31/render/ThemeColor.h"
+
 #import <QuartzCore/QuartzCore.h>
 
 #include <p31/scope/PhosphorBuffer.h>
@@ -84,7 +86,8 @@ namespace {
     self = [super initWithFrame:frameRect];
     if (self) {
         self.wantsLayer = YES;
-        _colorSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+        // The afterglow image is built from theme colours: Display P3.
+        _colorSpace = p31::ui::createThemeColorSpace();
         _traceEmpty = true;
         for (int i = 0; i < kMaxRows; ++i) {
             _target[i] = _shown[i] = 0.0f;
@@ -216,12 +219,8 @@ namespace {
 
 #pragma mark - Color helpers
 
-static NSColor *colorFromARGB(uint32_t argb) {
-    return [NSColor colorWithSRGBRed:((argb >> 16) & 0xFF) / 255.0
-                               green:((argb >> 8) & 0xFF) / 255.0
-                                blue:(argb & 0xFF) / 255.0
-                               alpha:((argb >> 24) & 0xFF) / 255.0];
-}
+// Theme colours are Display P3 (ThemeColor.h).
+using p31::ui::colorFromARGB;
 
 - (uint32_t)traceARGB {
     return [self isDarkAppearance] ? _traceColorDark : _traceColorLight;

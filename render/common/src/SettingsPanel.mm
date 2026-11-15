@@ -6,12 +6,16 @@
 #import "p31/render/SettingsPanel.h"
 
 #import "p31/render/Logo.h"
+#import "p31/render/ThemeColor.h"
 
 #include <algorithm>
 #include <cmath>
 #include <vector>
 
 using p31::ui::Row;
+// Stored colours are Display P3, matching how the views draw them.
+using p31::ui::argbFromColor;
+using p31::ui::colorFromARGB;
 
 namespace {
     constexpr CGFloat kHeaderHeight = 40.0;
@@ -20,21 +24,6 @@ namespace {
     constexpr CGFloat kGridWidth = 420.0;
     constexpr CGFloat kSliderWidth = 150.0;
     constexpr CGFloat kValueWidth = 72.0;
-
-    NSColor *colorFromARGB(uint32_t argb) {
-        return [NSColor colorWithSRGBRed:((argb >> 16) & 0xFF) / 255.0
-                                   green:((argb >> 8) & 0xFF) / 255.0
-                                    blue:(argb & 0xFF) / 255.0
-                                   alpha:((argb >> 24) & 0xFF) / 255.0];
-    }
-
-    uint32_t argbFromColor(NSColor *color) {
-        NSColor *c = [color colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
-        if (!c) return 0xFF000000;
-        const auto byte = [](CGFloat v) { return static_cast<uint32_t>(std::lround(std::clamp(v, 0.0, 1.0) * 255.0)); };
-        return (byte(c.alphaComponent) << 24) | (byte(c.redComponent) << 16) | (byte(c.greenComponent) << 8) |
-               byte(c.blueComponent);
-    }
 
     NSString *str(const std::string &s) {
         NSString *r = [NSString stringWithUTF8String:s.c_str()];

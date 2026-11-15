@@ -51,7 +51,8 @@ signed yet, and each release's notes explain how to open one.
 - **Readout** (P31 Spectrum): hover over the spectrum for the frequency, the
   nearest note with its offset in cents, and the level.
 - **Themes**: P7 blue (Spectrum's default), P31 green, P3 amber and P4 white,
-  named after CRT phosphors, plus more colour presets.
+  named after CRT phosphors, plus more colour presets. Theme and custom
+  colours are drawn in Display P3, at full saturation on wide-gamut screens.
 - **Appearance**: follow the system, or fixed light or dark per instance.
 - **Size**: drag the grip in the bottom-right corner. The size is saved with
   the project.
