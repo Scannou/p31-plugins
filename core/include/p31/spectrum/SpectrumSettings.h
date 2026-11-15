@@ -77,41 +77,41 @@ struct SpectrumColors {
 
 struct SpectrumSettings {
     // Analysis
-    int  fftSize = 2048;
+    int  fftSize = 4096;
     int  window = WindowHann;
     int  minHz = 20;
     int  maxHz = 20000;
-    int  freqScale = FreqScaleSoftLog;
+    int  freqScale = FreqScaleLog;
     int  stereoMode = StereoMono;
-    int  slopeTenths = 20;         // spectral tilt around 1 kHz, 0.1 dB/octave
+    int  slopeTenths = 10;         // spectral tilt around 1 kHz, 0.1 dB/octave
 
     // Motion
     int  smoothingMode = SmoothingRms;
     int  smoothing = 82;           // attack/decay 0-100 (higher = smoother)
-    int  rmsMs = 270;              // RMS power averaging time constant
+    int  rmsMs = 255;              // RMS power averaging time constant
     bool shadowFill = true;        // slow-decaying dim fill behind the bars
     int  shadowFallSpeed = 76;     // 0-100 (higher = faster)
     bool peakHold = true;          // falling peak caps / line
     int  peakFallDbPerSec = 12;
-    int  peakHoldMs = 920;
+    int  peakHoldMs = 1080;
 
     // Display
     int  drawMode = DrawModeCurve;
     int  curveStyle = CurveStyleLineColorBars;
     int  curveOctaveFraction = 24; // curve detail: 0 = full, N = 1/N octave smoothing
-    int  colorBarBrightness = 85;  // strength of the loudest color bar, % (10-100)
+    int  colorBarBrightness = 80;  // strength of the loudest color bar, % (10-100)
     int  barCount = kBarCountAuto;
     int  barStyle = BarStyleGradient;
     int  gapPercent = 12;          // gap between bars, % of slot width
     int  orientation = OrientationHorizontal;
-    int  topDb = 0;                // level at the top of the display
-    int  rangeDb = 80;             // dB from the top to the bottom
+    int  topDb = -8;               // level at the top of the display
+    int  rangeDb = 60;             // dB from the top to the bottom
 
     // Appearance
     bool showDbGuides = true;
     bool showFreqAxis = true;
     bool showLegend = true;        // Live / Peak hold key in Curve mode
-    int  gridOpacity = 60;         // 0-100
+    int  gridOpacity = 32;         // 0-100
     int  appearance = AppearanceAuto;
     int  theme = 14;               // index into kThemes (P7 blue); 0 = custom colors
     SpectrumColors light{0xFF2D6CC0, 0xFFF0F4F9, 0xFF64748A};
@@ -125,11 +125,11 @@ struct SpectrumSettings {
         const auto oneOf = [](int v, const auto& choices, int fallback) {
             return std::find(std::begin(choices), std::end(choices), v) != std::end(choices) ? v : fallback;
         };
-        s.fftSize = oneOf(fftSize, kFftSizes, 2048);
+        s.fftSize = oneOf(fftSize, kFftSizes, 4096);
         s.window = pick(window, WindowHann, WindowBlackmanHarris, WindowHann);
         s.minHz = std::clamp(minHz, 10, 1000);
         s.maxHz = std::clamp(maxHz, s.minHz + 100, 96000);
-        s.freqScale = pick(freqScale, FreqScaleLog, FreqScaleSoftLog, FreqScaleSoftLog);
+        s.freqScale = pick(freqScale, FreqScaleLog, FreqScaleSoftLog, FreqScaleLog);
         s.stereoMode = pick(stereoMode, StereoMono, StereoMidSide, StereoMono);
         s.slopeTenths = std::clamp(slopeTenths, 0, kMaxSlopeTenths);
         s.smoothingMode = pick(smoothingMode, SmoothingAttackDecay, SmoothingRms, SmoothingRms);
@@ -148,7 +148,7 @@ struct SpectrumSettings {
         s.gapPercent = std::clamp(gapPercent, 0, 80);
         s.orientation = pick(orientation, OrientationHorizontal, OrientationVertical, OrientationHorizontal);
         s.topDb = std::clamp(topDb, kMinTopDb, kMaxTopDb);
-        s.rangeDb = oneOf(rangeDb, kRangeDbChoices, 80);
+        s.rangeDb = oneOf(rangeDb, kRangeDbChoices, 60);
         s.gridOpacity = std::clamp(gridOpacity, 0, 100);
         s.appearance = pick(appearance, AppearanceAuto, AppearanceDark, AppearanceAuto);
         s.theme = pick(theme, 0, 14, 0);   // kThemeCount - 1

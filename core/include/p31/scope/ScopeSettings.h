@@ -76,25 +76,25 @@ struct ScopeSettings {
     int  drawMode = DrawModeLines;
     int  traceColorMode = TraceColorBands;
     int  dotSizeTenths = 0;        // dot diameter in tenths of a point; 0 = auto
-    int  persistenceMs = 300;      // afterglow time constant
-    int  brightness = 60;          // 0-100
+    int  persistenceMs = 94;       // afterglow time constant
+    int  brightness = 78;          // 0-100
     bool autoGain = true;          // scale quiet material up to fill the scope
     int  gainDb = 0;               // fixed gain when auto gain is off
 
     // Correlation meter
     bool showCorrelation = true;
     int  correlationMode = CorrelationBands;
-    int  meterPosition = scope_layout::MeterRight;
-    int  barThickness = 9;         // points
-    int  integrationMs = 500;      // correlation time window
+    int  meterPosition = scope_layout::MeterBottom;
+    int  barThickness = 11;        // points
+    int  integrationMs = 225;      // correlation time window
     int  rangeHoldMs = 200;        // how long the recent range is held; 0 = off
-    int  lowHz = 250;              // low / mid crossover
+    int  lowHz = 160;              // low / mid crossover
     int  highHz = 2000;            // mid / high crossover
 
     // Appearance
     bool showGrid = true;          // outline, level guides, axes
     bool showLabels = true;        // L / R / M / S and the correlation scale
-    int  gridOpacity = 70;         // 0-100
+    int  gridOpacity = 26;         // 0-100
     int  appearance = AppearanceAuto;
     int  theme = 2;                // index into kThemes (Classic (Green)); 0 = custom colors
     ScopeColors light{0xFF1B8A3A, 0xFFF4F4F4, 0xFF9AA0A0, {0xFFB86A00, 0xFF1B8A3A, 0xFF2E7DD1}};

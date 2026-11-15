@@ -248,12 +248,12 @@ TEST_CASE("Settings map to analyzer rates as in fb2k") {
     SpectrumAnalyzer::Settings s = analyzerSettings(u, 321);
     CHECK(s.barCount == 321);
     CHECK(s.smoothingMode == SmoothingRms);
-    CHECK(s.freqScale == FreqScaleSoftLog);
-    CHECK(s.peakFall == doctest::Approx(12.0 / 60.0 / 80.0));   // 80 dB range by default
-    CHECK(s.peakHoldSec == doctest::Approx(0.92));
-    CHECK(s.slopeDbPerOct == doctest::Approx(2.0));   // our default; fb2k's was flat
+    CHECK(s.freqScale == FreqScaleLog);
+    CHECK(s.peakFall == doctest::Approx(12.0 / 60.0 / 60.0));   // 60 dB range by default
+    CHECK(s.peakHoldSec == doctest::Approx(1.08));
+    CHECK(s.slopeDbPerOct == doctest::Approx(1.0));   // our default; fb2k's was flat
     // RMS: the shadow falls slower than the RMS curve can.
-    const double curveFall = 10.0 * std::log10(std::exp(1.0)) / 0.27 / 60.0 / 80.0;
+    const double curveFall = 10.0 * std::log10(std::exp(1.0)) / 0.255 / 60.0 / 60.0;
     CHECK(s.shadowFall < curveFall);
 
     u.drawMode = DrawModeBars;
@@ -271,9 +271,9 @@ TEST_CASE("sanitized pulls stored values back into range") {
     u.barCount = 100000;
     u.peakFallDbPerSec = 0;
     const SpectrumSettings s = u.sanitized();
-    CHECK(s.fftSize == 2048);
-    CHECK(s.rangeDb == 80);   // the default
-    CHECK(s.freqScale == FreqScaleSoftLog);
+    CHECK(s.fftSize == 4096);
+    CHECK(s.rangeDb == 60);   // the default
+    CHECK(s.freqScale == FreqScaleLog);
     CHECK(s.curveOctaveFraction == 24);   // the default
     CHECK(s.barCount == kMaxBarCount);
     CHECK(s.peakFallDbPerSec == kMinPeakFallDbPerSec);

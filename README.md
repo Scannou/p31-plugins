@@ -23,7 +23,7 @@ signed yet, and each release's notes explain how to open one.
 - Hover readout: frequency, nearest note with cents, and level
 - Overlapping windowed FFT (1024 to 32768 points, Hann or Blackman-Harris),
   vDSP with a pffft fallback
-- Log, compact-bass log or linear frequency axis; adjustable slope (2 dB/oct
+- Log, compact-bass log or linear frequency axis; adjustable slope (1 dB/oct
   by default), range and smoothing (RMS or attack / decay)
 - Mid + side display; vertical layout
 
