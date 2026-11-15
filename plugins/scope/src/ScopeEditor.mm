@@ -180,6 +180,7 @@ private:
     void tick(double now) {
         if (_params.changed(_plugin)) [_root reloadSettings];
         [_root refreshFreeze];
+        [_root snapContentToPixels];
         // Frozen: the trace and meter hold; on release they continue from "now".
         if (_plugin.frozen()) {
             _wasFrozen = true;

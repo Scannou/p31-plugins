@@ -188,6 +188,7 @@ private:
     void tick(double now) {
         if (_params.changed(_plugin)) [_root reloadSettings];
         [_root refreshFreeze];
+        [_root snapContentToPixels];
         // Frozen: the picture holds; on release it continues from "now".
         if (_plugin.frozen()) {
             _wasFrozen = true;

@@ -52,6 +52,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 // Re-read the freeze state (cheap; call every frame).
 - (void)refreshFreeze;
+// Keep the content on whole device pixels (cheap; call every frame: a host
+// can move the editor without resizing it, and only the frame notices).
+- (void)snapContentToPixels;
 // Re-read the open panel's values after the settings or a parameter changed
 // from outside (state load, preset, automation).
 - (void)reloadSettings;

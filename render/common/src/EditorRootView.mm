@@ -6,6 +6,7 @@
 #import "p31/render/EditorRootView.h"
 
 #import "p31/render/Menus.h"
+#import "p31/render/PixelSnap.h"
 
 #include <p31/core/Appearance.h>
 
@@ -188,6 +189,7 @@ namespace {
 
 - (void)layout {
     [super layout];
+    [self snapContentToPixels];
     const NSRect b = self.bounds;
     const CGFloat w = 2 * kButtonSize + kButtonGap, h = kButtonSize;
     // Top right; this view is not flipped.
@@ -196,6 +198,11 @@ namespace {
     _settingsChip.frame = NSMakeRect(kButtonSize + kButtonGap, 0.0, kButtonSize, kButtonSize);
     _grip.frame = NSMakeRect(NSMaxX(b) - kGripSize, 0.0, kGripSize, kGripSize);
     [self.window invalidateCursorRectsForView:_grip];
+}
+
+// The host may place the editor between pixels; keep the drawing on whole ones.
+- (void)snapContentToPixels {
+    p31::ui::pixelSnapContent(self, _content);
 }
 
 #pragma mark - Toolbar visibility
