@@ -48,15 +48,19 @@ TEST_CASE("ScopeLayout: bottom") {
     EXPECT_FLOAT_EQ(r.plot.x, 38.0, "scope is centred horizontally");
     EXPECT_FLOAT_EQ(r.plot.y, 56.0, "scope is centred above the strip");
     EXPECT_EQ(r.bars, 1, "one track");
-    EXPECT_FLOAT_EQ(r.track[0].x, 24.0, "bar starts under the scope's left label");
-    EXPECT_FLOAT_EQ(r.track[0].w, 314.0, "bar leaves room for the readout");
+    EXPECT_FLOAT_EQ(r.track[0].x, 62.0, "bar leaves the readout's room on the left too");
+    EXPECT_FLOAT_EQ(r.track[0].w, 276.0, "bar leaves room for the readout");
+    EXPECT_FLOAT_EQ(r.track[0].x + r.track[0].w / 2.0, r.plot.x + r.plot.w / 2.0,
+                   "zero lines up with the scope's vertical axis");
     EXPECT_FLOAT_EQ(r.track[0].y, 20.5, "bar sits above the scale");
     EXPECT_FLOAT_EQ(r.track[0].h, 6.0, "bar has the requested thickness");
 
     const Result bands = layout(panel(400, 400, MeterBottom, 3));
     EXPECT_EQ(bands.bars, 3, "three tracks");
     EXPECT_FLOAT_EQ(bands.meter.h, 57.0, "three rows");
-    EXPECT_FLOAT_EQ(bands.track[0].x - (bands.plot.x - kLabelInset), kRowLabelWidth, "band names take room before the bars");
+    EXPECT(bands.track[0].x - (bands.plot.x - kLabelInset) >= kRowLabelWidth, "band names take room before the bars");
+    EXPECT_FLOAT_EQ(bands.track[0].x + bands.track[0].w / 2.0, bands.plot.x + bands.plot.w / 2.0,
+                   "zero lines up with the scope's vertical axis");
     EXPECT(bands.track[0].y > bands.track[1].y && bands.track[1].y > bands.track[2].y, "low band on top");
     EXPECT_FLOAT_EQ(bands.track[0].y - bands.track[1].y, 11.0, "rows are one pitch apart");
 
@@ -244,6 +248,10 @@ TEST_CASE("ScopeLayout: invariants") {
                                     EXPECT(t.y + t.h + (t.y - r.legend[r.bars - 1].y) <= h, "bars stay centred");
                                 } else {
                                     EXPECT(r.legend[i].empty(), "legend only beside the scope with labels");
+                                }
+                                if (!r.vertical) {
+                                    EXPECT_FLOAT_EQ(t.x + t.w / 2.0, r.plot.x + r.plot.w / 2.0,
+                                                   "zero lines up with the scope's vertical axis");
                                 }
                                 EXPECT(r.vertical ? (t.x >= r.meter.x && t.x + t.w <= r.meter.x + r.meter.w)
                                                  : (t.y >= r.meter.y && t.y + t.h <= r.meter.y + r.meter.h),
