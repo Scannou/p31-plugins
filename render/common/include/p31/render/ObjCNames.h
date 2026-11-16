@@ -26,6 +26,8 @@
 #define P31DisplayLinkTarget  P31_OBJC_CLASS(P31DisplayLinkTarget)
 #define P31ScopeView          P31_OBJC_CLASS(P31ScopeView)
 #define P31SpectrumView       P31_OBJC_CLASS(P31SpectrumView)
+#define P31MeterView          P31_OBJC_CLASS(P31MeterView)
+#define P31MeterLiveView      P31_OBJC_CLASS(P31MeterLiveView)
 #define P31SpectrogramView    P31_OBJC_CLASS(P31SpectrogramView)
 #define P31SpectrogramPlotView    P31_OBJC_CLASS(P31SpectrogramPlotView)
 #define P31SpectrogramOverlayView P31_OBJC_CLASS(P31SpectrogramOverlayView)

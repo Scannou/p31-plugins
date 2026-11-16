@@ -35,6 +35,14 @@ target_sources(p31-render-spectrum INTERFACE
 target_include_directories(p31-render-spectrum INTERFACE spectrum/include)
 target_link_libraries(p31-render-spectrum INTERFACE p31-render-common p31-core)
 
+add_library(p31-render-meter INTERFACE)
+target_sources(p31-render-meter INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/meter/src/MeterRenderer.mm
+    ${CMAKE_CURRENT_SOURCE_DIR}/meter/src/MeterView.mm
+)
+target_include_directories(p31-render-meter INTERFACE meter/include)
+target_link_libraries(p31-render-meter INTERFACE p31-render-common p31-core)
+
 add_library(p31-render-suite INTERFACE)
 target_sources(p31-render-suite INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/suite/src/SuiteView.mm
