@@ -263,6 +263,19 @@ namespace {
                 content = pair;
                 break;
             }
+            case Row::Kind::Color: {
+                NSColorWell *w = [[NSColorWell alloc] initWithFrame:NSMakeRect(0, 0, 44, 22)];
+                if (@available(macOS 13.0, *)) w.colorWellStyle = NSColorWellStyleMinimal;
+                w.tag = tag * 2;
+                w.target = self;
+                w.action = @selector(colorChanged:);
+                w.toolTip = tooltip;
+                [w.widthAnchor constraintEqualToConstant:44].active = YES;
+                [w.heightAnchor constraintEqualToConstant:22].active = YES;
+                rc.lightWell = w;
+                content = w;
+                break;
+            }
         }
 
         if (rc.control) {
@@ -368,6 +381,9 @@ namespace {
                 rc.lightWell.color = colorFromARGB(row.getLight());
                 rc.darkWell.color = colorFromARGB(row.getDark());
                 break;
+            case Row::Kind::Color:
+                rc.lightWell.color = colorFromARGB(row.getLight());
+                break;
         }
         if (rc.control) rc.control.enabled = enabled;
         if (rc.lightWell) rc.lightWell.enabled = enabled;
@@ -432,7 +448,7 @@ namespace {
     const NSInteger index = sender.tag / 2;
     if (index < 0 || static_cast<size_t>(index) >= _form.size()) return;
     const Row &row = _form[static_cast<size_t>(index)];
-    if (row.kind != Row::Kind::ColorPair) return;
+    if (row.kind != Row::Kind::ColorPair && row.kind != Row::Kind::Color) return;
     const uint32_t argb = argbFromColor(sender.color);
     if (sender.tag % 2 == 0) row.setLight(argb);
     else row.setDark(argb);

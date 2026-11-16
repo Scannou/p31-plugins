@@ -25,6 +25,7 @@ struct Row {
         Checkbox,
         Number,      // integer text field, min .. max
         ColorPair,   // light and dark color
+        Color,       // one color, whatever the appearance
     };
 
     Kind kind = Kind::Section;
@@ -43,7 +44,7 @@ struct Row {
     // Optional: a slider drag or checkbox click as one edit (parameters).
     std::function<void()> begin, end;
 
-    // ColorPair, ARGB.
+    // ColorPair, ARGB. Color uses the light pair.
     std::function<uint32_t()> getLight, getDark;
     std::function<void(uint32_t)> setLight, setDark;
 
@@ -125,6 +126,18 @@ inline Row colorPair(std::string label, uint32_t& light, uint32_t& dark, std::fu
     r.getDark = [d] { return *d; };
     r.setLight = [l, onEdit](uint32_t v) { *l = v; if (onEdit) onEdit(); };
     r.setDark = [d, onEdit](uint32_t v) { *d = v; if (onEdit) onEdit(); };
+    return r;
+}
+
+// `value` is a reference into the settings value the form edits.
+inline Row color(std::string label, uint32_t& value, std::function<void()> onEdit = {}, std::string tooltip = {}) {
+    Row r;
+    r.kind = Row::Kind::Color;
+    r.label = std::move(label);
+    uint32_t* c = &value;
+    r.getLight = [c] { return *c; };
+    r.setLight = [c, onEdit](uint32_t v) { *c = v; if (onEdit) onEdit(); };
+    r.tooltip = std::move(tooltip);
     return r;
 }
 
