@@ -27,6 +27,17 @@ namespace {
     // host->name of clap-wrapper's standalone app.
     constexpr const char* kStandaloneHostName = "CLAP-Wrapper-As-Standalone";
 
+    // Plugin extension the standalone app asks which audio devices to open
+    // (patches/clap-wrapper/0003). The input only while that is the source;
+    // the output never, as it is muted there. With system audio as the
+    // source the app then opens no device, the microphone stays closed and
+    // its indicator off. A change is announced with host->request_restart().
+    constexpr const char* kExtStandaloneAudioIO = "clap-wrapper.standalone-audio-io/1";
+    struct StandaloneAudioIOExtension {
+        bool(CLAP_ABI* wants_input)(const clap_plugin* plugin);
+        bool(CLAP_ABI* wants_output)(const clap_plugin* plugin);
+    };
+
     // State blob: magic, format version, payload size (all little endian),
     // then the payload. Version 1 had no payload. Version 2's payload is
     // StateCodec text: editor size, parameter values and every setting;
@@ -185,6 +196,13 @@ const void* PluginBase::getExtension(const char* id) {
     if (std::strcmp(id, CLAP_EXT_PARAMS) == 0) return &s_params;
     if (std::strcmp(id, CLAP_EXT_STATE) == 0) return &s_state;
     if (std::strcmp(id, CLAP_EXT_GUI) == 0 && hasEditor()) return &s_gui;
+    if (std::strcmp(id, kExtStandaloneAudioIO) == 0) {
+        static const StandaloneAudioIOExtension ext{
+            [](const clap_plugin* p) { return self(p)->inputSource() == SourceInput; },
+            [](const clap_plugin*) { return false; },
+        };
+        return &ext;
+    }
     return extension(id);
 }
 
@@ -208,6 +226,7 @@ void PluginBase::setInputSource(int source) {
     _source.store(wanted);
     updateSystemAudio();
     settingsEdited();
+    reopenHostInput();
 }
 
 // Start or stop the system audio stream to match the source.
@@ -215,12 +234,21 @@ void PluginBase::updateSystemAudio() {
     if (inputSource() == SourceSystemAudio) {
         if (!_systemAudio) _systemAudio = std::make_unique<SystemAudioCapture>(&PluginBase::systemAudioSink, this);
         // Without the stream the app would show nothing: fall back to the input.
-        if (!_systemAudio->start()) _source.store(SourceInput);
+        if (!_systemAudio->start()) {
+            _source.store(SourceInput);
+            reopenHostInput();
+        }
     }
     if (inputSource() != SourceSystemAudio && _systemAudio) {
         _systemAudio->stop();
         _systemRate.store(0.0, std::memory_order_relaxed);
     }
+}
+
+// The app opens its audio devices only while the input is the source. Before
+// the first activation it has not opened any yet and asks by itself.
+void PluginBase::reopenHostInput() {
+    if (_standalone && _active) _host->request_restart(_host);
 }
 
 #pragma mark - audio ports

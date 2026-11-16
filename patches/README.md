@@ -40,3 +40,23 @@ uninitialized.
 The patch guards `_processAdapter`'s creation, deletion and use in
 `SetParameter` with a spin lock held only around the pointer check and a short
 copy. Rendering never takes it, and Uninitialize never overlaps a render.
+
+### 0003-standalone-open-only-the-audio-devices-the-plugin-needs
+
+Not a fix: a small plugin extension for the standalone app. The app always
+opened the default input and output devices (and asked for microphone access at
+launch), also for a plugin that takes its audio elsewhere. Our apps analyse
+system audio by default and play nothing, so the microphone was open, and its
+indicator lit, for nothing. Leaving out the input alone is not enough: an
+output-only stream on a device that also has inputs (an audio interface) counts
+as recording for macOS and lights the microphone indicator too.
+
+The app now asks the plugin for the extension
+`clap-wrapper.standalone-audio-io/1` (`wants_input`, `wants_output`). Without
+`wants_input` no input device is opened and no microphone access is requested.
+When the plugin wants neither, no audio stream is opened at all: the plugin is
+activated and runs without `process()` calls. The devices chosen in Audio/MIDI
+Settings are kept. When an answer changes the plugin calls
+`host->request_restart()`, and the app reopens the stream with the devices
+needed then. A plugin without the extension behaves as before. `PluginBase`
+implements the plugin side.

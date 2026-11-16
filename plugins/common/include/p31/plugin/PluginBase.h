@@ -161,6 +161,7 @@ private:
 
     // source
     void updateSystemAudio();
+    void reopenHostInput();
     static void systemAudioSink(void* context, const float* const* channels, uint32_t channelCount, uint32_t frames,
                                 double sampleRate);
 

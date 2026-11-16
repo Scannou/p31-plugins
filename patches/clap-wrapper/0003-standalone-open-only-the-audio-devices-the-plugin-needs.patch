@@ -1,0 +1,201 @@
+diff --git a/src/detail/standalone/macos/AppDelegate.mm b/src/detail/standalone/macos/AppDelegate.mm
+index 93ab1a9..a6a3aca 100644
+--- a/src/detail/standalone/macos/AppDelegate.mm
++++ b/src/detail/standalone/macos/AppDelegate.mm
+@@ -12,6 +12,8 @@
+ 
+ @interface ClapWrapperAppDelegate ()
+ 
++- (void)requestMicrophoneAccess;
++
+ @end
+ 
+ @interface AudioSettingsWindow : NSWindow
+@@ -38,6 +40,15 @@
+ 
+   if (standaloneHost->restartRequested.exchange(false))
+   {
++    if (!standaloneHost->audioInputMatchesPlugin())
++    {
++      // the plugin started or stopped using its audio input: reopen the
++      // stream with the devices it needs now, which also reactivates the
++      // plugin.
++      if (standaloneHost->pluginWantsAudioInput()) [self requestMicrophoneAccess];
++      standaloneHost->restartAudio();
++      return;
++    }
+     // manually set running to false to make clapProcess a no-op
+     // while the plugin is being reactivated. otherwise,
+     // stopping and starting the entire audio engine is probably
+@@ -52,6 +63,28 @@
+   }
+ }
+ 
++- (void)requestMicrophoneAccess
++{
++#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
++  switch ([AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio])
++  {
++    case AVAuthorizationStatusNotDetermined:
++    {
++      // The app hasn't yet asked the user for microphone access.
++      [AVCaptureDevice requestAccessForMediaType:AVMediaTypeAudio
++                               completionHandler:^(BOOL granted) {
++                                 if (granted)
++                                 {
++                                 }
++                               }];
++      break;
++    }
++    default:
++      break;
++  }
++#endif
++}
++
+ - (void)doSetup
+ {
+   // Insert code here to initialize your application
+@@ -96,28 +129,15 @@
+   std::string pid{PLUGIN_ID};
+   int pindex{PLUGIN_INDEX};
+ 
+-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
+-  switch ([AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio])
+-  {
+-    case AVAuthorizationStatusNotDetermined:
+-    {
+-      // The app hasn't yet asked the user for camera access.
+-      [AVCaptureDevice requestAccessForMediaType:AVMediaTypeAudio
+-                               completionHandler:^(BOOL granted) {
+-                                 if (granted)
+-                                 {
+-                                 }
+-                               }];
+-      break;
+-    }
+-    default:
+-      break;
+-  }
+-#endif
+-
+   auto plugin =
+       freeaudio::clap_wrapper::standalone::mainCreatePlugin(entry, pid, pindex, 1, (char **)argv);
+ 
++  // a plugin that does not use its audio input needs no microphone access
++  if (freeaudio::clap_wrapper::standalone::getStandaloneHost()->pluginWantsAudioInput())
++  {
++    [self requestMicrophoneAccess];
++  }
++
+   [[self window] orderFrontRegardless];
+   [[self window] setDelegate:self];
+ 
+diff --git a/src/detail/standalone/standalone_host.h b/src/detail/standalone/standalone_host.h
+index 06b783f..1df6ace 100644
+--- a/src/detail/standalone/standalone_host.h
++++ b/src/detail/standalone/standalone_host.h
+@@ -39,6 +39,21 @@ struct X11Gui;
+ 
+ std::optional<fs::path> getStandaloneSettingsPath();
+ 
++// Plugin extension: the plugin tells the standalone which audio devices it
++// needs. Without the extension both are opened.
++static constexpr char kStandaloneAudioIOExtension[] = "clap-wrapper.standalone-audio-io/1";
++struct StandaloneAudioIOExtension
++{
++  // false while the plugin does not read its audio input: no input device
++  // is opened. [main-thread]
++  bool(CLAP_ABI *wants_input)(const clap_plugin_t *plugin);
++  // false when the plugin's output need not be played. With no input
++  // either, no audio stream is opened and process() is not called: an
++  // output-only stream on a device that also has inputs counts as recording
++  // for macOS and lights the microphone indicator. [main-thread]
++  bool(CLAP_ABI *wants_output)(const clap_plugin_t *plugin);
++};
++
+ struct StandaloneHost : Clap::IHost
+ {
+   StandaloneHost()
+@@ -266,6 +281,16 @@ struct StandaloneHost : Clap::IHost
+                           int32_t sampleRate);
+   void stopAudioThread();
+ 
++  // A plugin can do without the input device, and without an audio stream
++  // at all when it plays nothing either (kStandaloneAudioIOExtension).
++  // The devices the settings ask for are kept for when the plugin wants
++  // them again, which it announces with request_restart().
++  bool audioInputRequested{true}, audioOutputRequested{true};
++  bool pluginWantsAudioInput();
++  bool pluginWantsAudioOutput();
++  bool audioInputMatchesPlugin();
++  void restartAudio();
++
+   bool startupAudioSet{false};
+   unsigned int startAudioIn{0}, startAudioOut{0};
+   int startSampleRate{0};
+diff --git a/src/detail/standalone/standalone_host_audio.cpp b/src/detail/standalone/standalone_host_audio.cpp
+index 8e3d888..12d52ea 100644
+--- a/src/detail/standalone/standalone_host_audio.cpp
++++ b/src/detail/standalone/standalone_host_audio.cpp
+@@ -179,6 +179,12 @@ void StandaloneHost::startAudioThreadOn(unsigned int inputDeviceID, uint32_t inp
+     finishedRunning = false;
+   }
+ 
++  audioInputRequested = useInput;
++  audioOutputRequested = useOutput;
++  useInput = useInput && pluginWantsAudioInput();
++  // the output also clocks the input, so it only goes when both do
++  useOutput = useOutput && (useInput || pluginWantsAudioOutput());
++
+   audioInputDeviceID = inputDeviceID;
+   audioInputUsed = useInput;
+   audioOutputDeviceID = outputDeviceID;
+@@ -248,6 +254,13 @@ void StandaloneHost::startAudioThreadOn(unsigned int inputDeviceID, uint32_t inp
+     currentBufferSize = 256;
+   }
+ 
++  if (!useInput && !useOutput)
++  {
++    // the plugin needs no audio device: it runs without process() calls
++    activatePlugin(sampleRate, 1, currentBufferSize * 2);
++    return;
++  }
++
+   if (rtaDac->openStream((useOutput) ? &oParams : nullptr, (useInput) ? &iParams : nullptr,
+                          RTAUDIO_FLOAT32, sampleRate, &currentBufferSize, &rtaCallback, (void *)this,
+                          &options))
+@@ -292,6 +305,33 @@ void StandaloneHost::startAudioThreadOn(unsigned int inputDeviceID, uint32_t inp
+   }
+ }
+ 
++bool StandaloneHost::pluginWantsAudioInput()
++{
++  if (!clapPlugin || !clapPlugin->_plugin) return true;
++  auto p = clapPlugin->_plugin;
++  auto ext = (const StandaloneAudioIOExtension *)p->get_extension(p, kStandaloneAudioIOExtension);
++  return !ext || !ext->wants_input || ext->wants_input(p);
++}
++
++bool StandaloneHost::pluginWantsAudioOutput()
++{
++  if (!clapPlugin || !clapPlugin->_plugin) return true;
++  auto p = clapPlugin->_plugin;
++  auto ext = (const StandaloneAudioIOExtension *)p->get_extension(p, kStandaloneAudioIOExtension);
++  return !ext || !ext->wants_output || ext->wants_output(p);
++}
++
++bool StandaloneHost::audioInputMatchesPlugin()
++{
++  return audioInputUsed == (audioInputRequested && pluginWantsAudioInput());
++}
++
++void StandaloneHost::restartAudio()
++{
++  startAudioThreadOn(audioInputDeviceID, 2, audioInputRequested, audioOutputDeviceID, 2,
++                     audioOutputRequested, currentSampleRate);
++}
++
+ void StandaloneHost::stopAudioThread()
+ {
+   LOGINFO("Shutting down audio");
