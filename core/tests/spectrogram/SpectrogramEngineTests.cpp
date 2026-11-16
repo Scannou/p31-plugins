@@ -261,8 +261,36 @@ void testRows() {
     }
 }
 
+// The loudest level is read whatever the top, and a remap with another top
+// moves the column as rendering it again would.
+void testLoudestAndRemap() {
+    g_context = "loudest";
+    SpectrogramEngine::Settings s;   // reassigned: a tone's whole lobe in one row
+    s.topDb = -40.0f;   // a -12 dBFS tone is far above the display
+    s.rangeDb = 60.0f;
+    SpectrogramEngine engine;
+    engine.configure(s);
+    engine.setRows(kRows);
+    engine.setSampleRate(44100.0);
+    EXPECT(std::isinf(engine.loudestDb()), "nothing before the first column");
+    const std::vector<float> x = tone(engine.windowLength(), 1000.0, 44100.0, 0.25);
+    std::vector<float> clipped((size_t)kRows), remapped((size_t)kRows), rendered((size_t)kRows);
+    engine.renderColumn(x.data(), clipped.data());
+    EXPECT(std::fabs(engine.loudestDb() - (-12.04f)) < 1.5f, "loudest level of a -12 dBFS tone");
+    EXPECT_FLOAT_EQ(peakOf(clipped).level, 1.0, "clipped at the old top");
+
+    engine.setTopDb(-6.0f);
+    engine.remapColumn(remapped.data());
+    engine.renderColumn(x.data(), rendered.data());
+    bool same = true;
+    for (int r = 0; r < kRows; ++r) same = same && std::fabs(remapped[(size_t)r] - rendered[(size_t)r]) < 1e-5f;
+    EXPECT(same, "remap equals a render with the new top");
+    EXPECT(peakOf(remapped).level < 1.0f, "fits below the new top");
+}
+
 } // namespace
 
+TEST_CASE("Spectrogram engine: loudest level and remap") { testLoudestAndRemap(); }
 TEST_CASE("Spectrogram engine: axis mapping") { testAxisMapping(); }
 TEST_CASE("Spectrogram engine: window length") { testWindowLength(); }
 TEST_CASE("Spectrogram engine: dBFS calibration") { testCalibration(); }

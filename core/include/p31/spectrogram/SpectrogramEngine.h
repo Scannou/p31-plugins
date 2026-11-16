@@ -22,6 +22,7 @@
 #include "p31/spectrum/Fft.h"
 
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <vector>
 
@@ -78,6 +79,16 @@ public:
     // time; `out` receives rows() levels in 0..1.
     void renderColumn(const float* samples, float* out);
 
+    // The loudest level of the last column, in dB and not limited to the
+    // display (slope included): for a top that follows the material. -inf
+    // before the first column.
+    float loudestDb() const { return _loudestDb; }
+    // Move the level mapped to 1.0. Takes effect from the next column, or
+    // for the last one through remapColumn().
+    void setTopDb(float topDb) { _settings.topDb = topDb; }
+    // The last column again, mapped with the current top and range.
+    void remapColumn(float* out) const;
+
     // Position of a frequency along the axis (0 = minHz, 1 = maxHz) and back.
     // Shared with the view so labels and probe line up with the pixels.
     static double fractionForHz(int scale, double minHz, double maxHz, double hz);
@@ -130,6 +141,8 @@ private:
     std::vector<float> _dRe, _dIm;   // derivative-window spectrum
     std::vector<double> _rowPower;   // reassigned power accumulated per row
     const float* _windowedSource = nullptr;  // samples of the column being rendered
+    std::vector<float> _columnDb;    // the last column per row, dB with the slope
+    float _loudestDb = -std::numeric_limits<float>::infinity();
 };
 
 } // namespace p31::spectrogram

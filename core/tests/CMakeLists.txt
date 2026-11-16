@@ -1,6 +1,7 @@
 add_executable(p31-core-tests
     main.cpp
     AudioRingTests.cpp
+    AutoTopTests.cpp
     PassThroughTests.cpp
     PresetStoreTests.cpp
     StateCodecTests.cpp
