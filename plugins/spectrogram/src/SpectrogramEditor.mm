@@ -10,8 +10,6 @@
 
 #include "SpectrogramEditor.h"
 
-#include "SpectrogramPlugin.h"
-
 #import <p31/render/EditorRootView.h>
 #import <p31/render/SpectrogramView.h>
 
@@ -91,10 +89,10 @@ std::vector<std::pair<std::string, SpectrogramSettings>> factoryPresets() {
 
 class SpectrogramEditor final : public p31::Editor {
 public:
-    SpectrogramEditor(SpectrogramPlugin& plugin, uint32_t width, uint32_t height)
-        : _plugin(plugin), _settings(plugin.settings()) {
-        _params.changed(plugin);
-        _written = plugin.ring().writePosition();
+    SpectrogramEditor(SpectrogramModule& module, uint32_t width, uint32_t height)
+        : _module(module), _plugin(module.plugin()), _settings(module.settings()) {
+        _params.changed(_plugin);
+        _written = module.ring().writePosition();
 
         const NSRect frame = NSMakeRect(0, 0, width, height);
         _view = [[P31SpectrogramView alloc] initWithFrame:frame];
@@ -135,6 +133,8 @@ public:
         [_root setFrameSize:NSMakeSize(width, height)];
     }
 
+    void* view() const override { return (__bridge void*)_root; }
+
     void setVisible(bool visible) override {
         _root.hidden = !visible;
         // Continue at "now" rather than replaying what played while hidden.
@@ -142,7 +142,7 @@ public:
     }
 
     void settingsChanged() override {
-        _settings = _plugin.settings();
+        _settings = _module.settings();
         apply();
         [_root reloadSettings];
     }
@@ -175,15 +175,15 @@ private:
 
     // A control on the settings page changed _settings.
     void edited() {
-        _plugin.setSettings(_settings);
-        _settings = _plugin.settings();
+        _module.setSettings(_settings);
+        _settings = _module.settings();
         apply();
     }
 
     void applyPreset(const SpectrogramSettings& preset) {
         SpectrogramSettings s = preset;
         s.appearance = _settings.appearance;
-        _plugin.setSettings(s);
+        _module.setSettings(s);
         settingsChanged();
     }
 
@@ -191,7 +191,7 @@ private:
         SpectrogramEditor* editor = this;
         return p31::ui::makePresetMenu(
             p31::editor::presetSource<SpectrogramSettings>(
-                _plugin, factoryPresets(), [editor](const SpectrogramSettings& s) { editor->applyPreset(s); }),
+                _module, factoryPresets(), [editor](const SpectrogramSettings& s) { editor->applyPreset(s); }),
             _root);
     }
 
@@ -212,7 +212,7 @@ private:
         const auto have = static_cast<size_t>(std::min<uint64_t>(end, count));
         const size_t pad = count - have;
         std::fill_n(_lr.begin(), pad * 2, 0.0f);
-        _plugin.ring().copy(end - have, have, _lr.data() + pad * 2);
+        _module.ring().copy(end - have, have, _lr.data() + pad * 2);
 
         const float gain = _plugin.analysisGain();
         const float* lr = _lr.data();
@@ -246,8 +246,8 @@ private:
         [_root snapContentToPixels];
         placeToolbar();
 
-        const double sampleRate = _plugin.currentSampleRate();
-        const uint64_t written = _plugin.ring().writePosition();
+        const double sampleRate = _module.sampleRate();
+        const uint64_t written = _module.ring().writePosition();
         const bool onTime = _lastTick > 0 && now - _lastTick < kLateFrameSeconds;
         _lastTick = now;
         if (written != _written) {
@@ -299,7 +299,8 @@ private:
         [_view flushWithPhase:_clock.phase(hop)];
     }
 
-    SpectrogramPlugin& _plugin;
+    SpectrogramModule& _module;
+    p31::PluginBase& _plugin;   // parameters and source
     SpectrogramSettings _settings;   // what the settings page edits
     SpectrogramEngine _engine;
     SpectrogramClock _clock;
@@ -438,6 +439,6 @@ Form SpectrogramEditor::buildForm() {
 
 } // namespace
 
-std::unique_ptr<p31::Editor> makeSpectrogramEditor(SpectrogramPlugin& plugin, uint32_t width, uint32_t height) {
-    return std::make_unique<SpectrogramEditor>(plugin, width, height);
+std::unique_ptr<p31::Editor> makeSpectrogramEditor(SpectrogramModule& module, uint32_t width, uint32_t height) {
+    return std::make_unique<SpectrogramEditor>(module, width, height);
 }

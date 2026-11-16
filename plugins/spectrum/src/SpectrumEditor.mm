@@ -10,8 +10,6 @@
 
 #include "SpectrumEditor.h"
 
-#include "SpectrumPlugin.h"
-
 #import <p31/render/EditorRootView.h>
 #import <p31/render/SpectrumView.h>
 
@@ -80,10 +78,10 @@ std::vector<std::pair<std::string, SpectrumSettings>> factoryPresets() {
 
 class SpectrumEditor final : public p31::Editor {
 public:
-    SpectrumEditor(SpectrumPlugin& plugin, uint32_t width, uint32_t height)
-        : _plugin(plugin), _reader(plugin.ring()), _settings(plugin.settings()) {
+    SpectrumEditor(SpectrumModule& module, uint32_t width, uint32_t height)
+        : _module(module), _plugin(module.plugin()), _reader(module.ring()), _settings(module.settings()) {
         _lr.resize(kMaxFramesPerTick * 2);
-        _params.changed(plugin);
+        _params.changed(_plugin);
 
         const NSRect frame = NSMakeRect(0, 0, width, height);
         _view = [[P31SpectrumView alloc] initWithFrame:frame];
@@ -127,6 +125,8 @@ public:
         [_root setFrameSize:NSMakeSize(width, height)];
     }
 
+    void* view() const override { return (__bridge void*)_root; }
+
     void setVisible(bool visible) override {
         _root.hidden = !visible;
         if (visible) {
@@ -138,7 +138,7 @@ public:
     }
 
     void settingsChanged() override {
-        _settings = _plugin.settings();
+        _settings = _module.settings();
         apply();
         [_root reloadSettings];
     }
@@ -156,22 +156,22 @@ private:
 
     // A control on the settings page changed _settings.
     void edited() {
-        _plugin.setSettings(_settings);
-        _settings = _plugin.settings();
+        _module.setSettings(_settings);
+        _settings = _module.settings();
         apply();
     }
 
     void applyPreset(const SpectrumSettings& preset) {
         SpectrumSettings s = preset;
         s.appearance = _settings.appearance;
-        _plugin.setSettings(s);
+        _module.setSettings(s);
         settingsChanged();
     }
 
     NSMenu* presetMenu() {
         SpectrumEditor* editor = this;
         return p31::ui::makePresetMenu(
-            p31::editor::presetSource<SpectrumSettings>(_plugin, factoryPresets(),
+            p31::editor::presetSource<SpectrumSettings>(_module, factoryPresets(),
                                                          [editor](const SpectrumSettings& s) { editor->applyPreset(s); }),
             _root);
     }
@@ -205,7 +205,7 @@ private:
         const double dt = _lastTick > 0 ? now - _lastTick : 1.0 / 60.0;
         _lastTick = now;
 
-        const double sampleRate = _plugin.currentSampleRate();
+        const double sampleRate = _module.sampleRate();
         if (sampleRate > 0) {
             _analyzer.setSampleRate(sampleRate);
             [_view setSampleRate:sampleRate];
@@ -236,7 +236,8 @@ private:
                  count:static_cast<NSInteger>(bars.size())];
     }
 
-    SpectrumPlugin& _plugin;
+    SpectrumModule& _module;
+    p31::PluginBase& _plugin;   // parameters and source
     p31::AudioRingReader _reader;
     SpectrumSettings _settings;   // what the settings page edits
     SpectrumAnalyzer _analyzer;
@@ -432,6 +433,6 @@ Form SpectrumEditor::buildForm() {
 
 } // namespace
 
-std::unique_ptr<p31::Editor> makeSpectrumEditor(SpectrumPlugin& plugin, uint32_t width, uint32_t height) {
-    return std::make_unique<SpectrumEditor>(plugin, width, height);
+std::unique_ptr<p31::Editor> makeSpectrumEditor(SpectrumModule& module, uint32_t width, uint32_t height) {
+    return std::make_unique<SpectrumEditor>(module, width, height);
 }

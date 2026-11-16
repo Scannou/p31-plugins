@@ -9,22 +9,16 @@
 
 #pragma once
 
+#include "SpectrumModule.h"
+
 #include <p31/core/AudioRing.h>
 #include <p31/plugin/PluginBase.h>
-#include <p31/spectrum/SpectrumSettings.h>
 
 class SpectrumPlugin final : public p31::PluginBase {
 public:
     static const clap_plugin_descriptor descriptor;
 
     explicit SpectrumPlugin(const clap_host* host);
-
-    const p31::AudioRing& ring() const { return _ring; }
-    double currentSampleRate() const { return sampleRate(); }
-    // Main thread.
-    const p31::spectrum::SpectrumSettings& settings() const { return _settings; }
-    // Main thread: the editor changed the settings.
-    void setSettings(const p31::spectrum::SpectrumSettings& settings);
 
 private:
     void analyze(const float* const* channels, uint32_t channelCount, uint32_t frames) override;
@@ -35,7 +29,7 @@ private:
     void decodeSettings(std::string_view text) override;
 
     p31::AudioRing _ring;
-    p31::spectrum::SpectrumSettings _settings;
+    SpectrumModule _module;
 };
 
 // Entry functions exported by Entry.cpp as clap_entry.

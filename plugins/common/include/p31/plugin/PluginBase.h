@@ -77,8 +77,6 @@ public:
 
     // --- Settings ---
 
-    // Main thread. The current settings as text (StateCodec), for presets.
-    std::string settingsText() const { return encodeSettings(); }
     // Main thread: the editor changed a setting.
     void settingsEdited();
     // Main thread: the editor asks to be `width` x `height` points (its own
@@ -86,12 +84,22 @@ public:
     bool requestEditorResize(uint32_t width, uint32_t height);
     // Plugin name, as in the descriptor.
     const char* name() const { return _plugin.desc->name; }
+    // Sample rate of the audio analyze() receives: the system audio's while
+    // that is the source, else the current (or last) activation's; 0 before
+    // the first. Safe from any thread.
+    double sampleRate() const {
+        const double system = _systemRate.load(std::memory_order_relaxed);
+        return system > 0 ? system : _sampleRate.load(std::memory_order_relaxed);
+    }
 
 protected:
     // Main thread. Settings to and from text; decodeSettings starts from the
     // defaults and must leave sanitized settings.
     virtual std::string encodeSettings() const { return {}; }
     virtual void decodeSettings(std::string_view text) { (void)text; }
+    // Main thread. The settings text a new instance starts from: the user's
+    // saved default, if any.
+    virtual std::string defaultSettings() const;
 
     // Audio thread, or Core Audio's IO thread while the source is system
     // audio; never both at once. Called once per block with the input
@@ -119,13 +127,6 @@ protected:
     virtual EditorSizeLimits editorSizeLimits() const { return {}; }
 
     const clap_host* host() const { return _host; }
-    // Sample rate of the audio analyze() receives: the system audio's while
-    // that is the source, else the current (or last) activation's; 0 before
-    // the first. Safe from any thread.
-    double sampleRate() const {
-        const double system = _systemRate.load(std::memory_order_relaxed);
-        return system > 0 ? system : _sampleRate.load(std::memory_order_relaxed);
-    }
 
 private:
     // clap_plugin

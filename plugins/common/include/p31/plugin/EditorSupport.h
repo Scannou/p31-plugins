@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "p31/plugin/Module.h"
 #include "p31/plugin/PluginBase.h"
 
 #include <p31/core/Appearance.h>
@@ -110,15 +111,15 @@ struct ParamWatch {
     }
 };
 
-// Presets for a plugin whose settings type `S` has visitFields. Applying a
+// Presets for a module whose settings type `S` has visitFields. Applying a
 // preset keeps the instance's appearance: that is a viewing preference, not
 // part of a sound or look someone shares.
 template <class S, class Apply>
-ui::PresetSource presetSource(PluginBase& plugin, std::vector<std::pair<std::string, S>> factory, Apply apply) {
-    ui::PresetSource src{{}, PresetStore::forPlugin(plugin.name()), {}, {}};
+ui::PresetSource presetSource(Module<S>& module, std::vector<std::pair<std::string, S>> factory, Apply apply) {
+    ui::PresetSource src{{}, module.presets(), {}, {}};
     for (const auto& [name, settings] : factory) src.factory.emplace_back(name, encodeSettings(settings));
-    PluginBase* p = &plugin;
-    src.currentText = [p] { return p->settingsText(); };
+    Module<S>* m = &module;
+    src.currentText = [m] { return m->encode(); };
     src.apply = [apply](const std::string& text) {
         S s;
         decodeSettings(text, s);

@@ -7,8 +7,6 @@
 
 #include "ScopeEditor.h"
 
-#include <p31/core/StateCodec.h>
-
 namespace {
     const char* const kFeatures[] = {
         CLAP_PLUGIN_FEATURE_AUDIO_EFFECT,
@@ -17,10 +15,6 @@ namespace {
         CLAP_PLUGIN_FEATURE_STEREO,
         nullptr,
     };
-
-    // Audio history kept for the editor. The editor reads at most ~50 ms per
-    // display frame; the rest is headroom for a stalled UI.
-    constexpr size_t kRingFrames = 65536;
 }
 
 const clap_plugin_descriptor ScopePlugin::descriptor{
@@ -36,32 +30,23 @@ const clap_plugin_descriptor ScopePlugin::descriptor{
     .features = kFeatures,
 };
 
-ScopePlugin::ScopePlugin(const clap_host* host) : PluginBase(&descriptor, host), _ring(2, kRingFrames) {}
+ScopePlugin::ScopePlugin(const clap_host* host)
+    : PluginBase(&descriptor, host), _ring(2, kScopeRingFrames), _module(makeScopeModule(*this, _ring)) {}
 
 void ScopePlugin::analyze(const float* const* channels, uint32_t channelCount, uint32_t frames) {
     _ring.write(channels, channelCount, frames);
 }
 
-void ScopePlugin::setSettings(const p31::scope::ScopeSettings& settings) {
-    _settings = settings.sanitized();
-    _settings.theme = p31::scope::themeMatching(_settings);
-    settingsEdited();
-}
-
 std::string ScopePlugin::encodeSettings() const {
-    return p31::encodeSettings(_settings);
+    return _module.encode();
 }
 
 void ScopePlugin::decodeSettings(std::string_view text) {
-    p31::scope::ScopeSettings s;
-    p31::decodeSettings(text, s);
-    _settings = s.sanitized();
-    // The stored index may come from the older theme list; the colors decide.
-    _settings.theme = p31::scope::themeMatching(_settings);
+    _module.decode(text);
 }
 
 std::unique_ptr<p31::Editor> ScopePlugin::createEditor(uint32_t width, uint32_t height) {
-    return makeScopeEditor(*this, width, height);
+    return makeScopeEditor(_module, width, height);
 }
 
 p31::EditorSizeLimits ScopePlugin::editorSizeLimits() const {

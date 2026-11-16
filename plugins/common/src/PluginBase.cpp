@@ -136,8 +136,12 @@ bool PluginBase::init() {
     _hostGui = static_cast<const clap_host_gui*>(_host->get_extension(_host, CLAP_EXT_GUI));
     // A new instance starts from the user's saved default, if any. A
     // project's own state replaces it right after.
-    decodeSettings(PresetStore::forPlugin(name()).loadDefault().value_or(std::string()));
+    decodeSettings(defaultSettings());
     return true;
+}
+
+std::string PluginBase::defaultSettings() const {
+    return PresetStore::forPlugin(name()).loadDefault().value_or(std::string());
 }
 
 void PluginBase::destroy() {

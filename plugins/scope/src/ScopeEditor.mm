@@ -10,8 +10,6 @@
 
 #include "ScopeEditor.h"
 
-#include "ScopePlugin.h"
-
 #import <p31/render/EditorRootView.h>
 #import <p31/render/ScopeView.h>
 
@@ -75,11 +73,11 @@ std::vector<std::pair<std::string, ScopeSettings>> factoryPresets() {
 
 class ScopeEditor final : public p31::Editor {
 public:
-    ScopeEditor(ScopePlugin& plugin, uint32_t width, uint32_t height)
-        : _plugin(plugin), _reader(plugin.ring()), _settings(plugin.settings()) {
+    ScopeEditor(ScopeModule& module, uint32_t width, uint32_t height)
+        : _module(module), _plugin(module.plugin()), _reader(module.ring()), _settings(module.settings()) {
         _lr.resize(kMaxFramesPerTick * 2);
         _xy.resize(kMaxFramesPerTick * 2);
-        _params.changed(plugin);
+        _params.changed(_plugin);
 
         const NSRect frame = NSMakeRect(0, 0, width, height);
         _view = [[P31ScopeView alloc] initWithFrame:frame];
@@ -120,13 +118,15 @@ public:
         [_root setFrameSize:NSMakeSize(width, height)];
     }
 
+    void* view() const override { return (__bridge void*)_root; }
+
     void setVisible(bool visible) override {
         _root.hidden = !visible;
         if (visible) _reader.skipToNow();
     }
 
     void settingsChanged() override {
-        _settings = _plugin.settings();
+        _settings = _module.settings();
         apply();
         [_root reloadSettings];
     }
@@ -155,22 +155,22 @@ private:
 
     // A control on the settings page changed _settings.
     void edited() {
-        _plugin.setSettings(_settings);
-        _settings = _plugin.settings();
+        _module.setSettings(_settings);
+        _settings = _module.settings();
         apply();
     }
 
     void applyPreset(const ScopeSettings& preset) {
         ScopeSettings s = preset;
         s.appearance = _settings.appearance;
-        _plugin.setSettings(s);
+        _module.setSettings(s);
         settingsChanged();
     }
 
     NSMenu* presetMenu() {
         ScopeEditor* editor = this;
         return p31::ui::makePresetMenu(
-            p31::editor::presetSource<ScopeSettings>(_plugin, factoryPresets(),
+            p31::editor::presetSource<ScopeSettings>(_module, factoryPresets(),
                                                      [editor](const ScopeSettings& s) { editor->applyPreset(s); }),
             _root);
     }
@@ -198,7 +198,7 @@ private:
         const double dt = _lastTick > 0 ? std::clamp(now - _lastTick, 0.0, 0.1) : 1.0 / 60.0;
         _lastTick = now;
 
-        const double sampleRate = _plugin.currentSampleRate();
+        const double sampleRate = _module.sampleRate();
         size_t frames = 0;
         if (sampleRate > 0) {
             const auto maxFrames = std::min(kMaxFramesPerTick,
@@ -235,7 +235,8 @@ private:
                   deltaTime:dt];
     }
 
-    ScopePlugin& _plugin;
+    ScopeModule& _module;
+    p31::PluginBase& _plugin;   // parameters and source
     p31::AudioRingReader _reader;
     ScopeSettings _settings;   // what the settings page edits
     StereoAnalyzer _analyzer;
@@ -369,6 +370,6 @@ Form ScopeEditor::buildForm() {
 
 } // namespace
 
-std::unique_ptr<p31::Editor> makeScopeEditor(ScopePlugin& plugin, uint32_t width, uint32_t height) {
-    return std::make_unique<ScopeEditor>(plugin, width, height);
+std::unique_ptr<p31::Editor> makeScopeEditor(ScopeModule& module, uint32_t width, uint32_t height) {
+    return std::make_unique<ScopeEditor>(module, width, height);
 }
