@@ -16,10 +16,13 @@
 //  down); the host side resizes the window like a DAW does. P31_ABOUT=1 opens
 //  the About dialog and saves that instead of the editor. P31_HOVER=x,y puts
 //  the mouse over the editor at that fraction of its width and height (0,0 is
-//  bottom left), for hover readouts.
+//  bottom left), for hover readouts (held down on the spectrogram).
+//  P31_HOLD=1 stops the audio shortly before the capture, as a stopped DAW
+//  does (a spectrogram then rests on whole pixels).
 //  signals: mix (default), mono, left, wide, antiphase, silence,
 //           sine (1 kHz at -6 dBFS), tones (100 Hz / 1 kHz / 10 kHz at -12 dBFS),
 //           white (white noise at -20 dBFS RMS),
+//           sweep (40 Hz to 16 kHz every 2 s over a 220 Hz tone and a click per second),
 //           file:<path> (raw interleaved stereo float32 at 48 kHz, looped; e.g.
 //           ffmpeg -i in.wav -f f32le -ac 2 -ar 48000 out.f32)
 //
@@ -103,6 +106,16 @@ void signalAt(const std::string& name, uint64_t n, std::mt19937& rng, float& l, 
     }
     if (name == "white") {
         l = r = 0.1f * noise(rng);
+        return;
+    }
+    if (name == "sweep") {
+        // Phase of a logarithmic sweep from f0 to f1 over `period` seconds.
+        constexpr double f0 = 40.0, f1 = 16000.0, period = 2.0;
+        const double u = std::fmod(t, period), k = std::log(f1 / f0) / period;
+        const double sweep = 0.25 * std::sin(2 * kPi * f0 * (std::exp(k * u) - 1.0) / k);
+        const double tone = 0.1 * std::sin(2 * kPi * 220 * t);
+        const double click = std::fmod(t, 1.0) < 0.002 ? 0.5 * noise(rng) : 0.0;
+        l = r = static_cast<float>(sweep + tone + click + 0.0005 * noise(rng));
         return;
     }
     if (name == "wide") {
@@ -349,33 +362,47 @@ int main(int argc, const char* argv[]) {
         // window change), so the simulated one is sent again before capture.
         NSView* hoverTarget = nil;
         NSEvent* hoverMove = nil;
+        // The spectrogram reads out while the mouse button is held instead.
+        bool hoverPress = false;
         if (const char* hover = std::getenv("P31_HOVER")) {
             double fx = 0, fy = 0;
             NSView* target = findViewOfClass(window.contentView, @"P31SpectrumView");
             if (!target) target = findViewOfClass(window.contentView, @"P31ScopeView");
+            if (!target) {
+                target = findViewOfClass(window.contentView, @"P31SpectrogramView");
+                hoverPress = target != nil;
+            }
             if (std::sscanf(hover, "%lf,%lf", &fx, &fy) != 2 || !target) {
                 std::fprintf(stderr, "hover failed\n");
                 return 1;
             }
             const NSPoint local = NSMakePoint(target.bounds.size.width * fx, target.bounds.size.height * fy);
-            NSEvent* move = [NSEvent mouseEventWithType:NSEventTypeMouseMoved
+            NSEvent* move = [NSEvent mouseEventWithType:hoverPress ? NSEventTypeLeftMouseDown : NSEventTypeMouseMoved
                                                location:[target convertPoint:local toView:nil]
                                           modifierFlags:0
                                               timestamp:NSProcessInfo.processInfo.systemUptime
                                            windowNumber:window.windowNumber
                                                 context:nil
                                             eventNumber:0
-                                             clickCount:0
-                                               pressure:0];
+                                             clickCount:hoverPress ? 1 : 0
+                                               pressure:hoverPress ? 1.0f : 0.0f];
             // Keep the readout where it is while the audio plays.
-            [target mouseMoved:move];
+            if (hoverPress) [target mouseDown:move];
+            else [target mouseMoved:move];
             hoverTarget = target;
             hoverMove = move;
         }
         constexpr double kSettle = 0.1;   // a frame or two to draw the re-sent hover
         [[NSRunLoop mainRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:std::max(0.0, seconds - kSettle)]];
+        if (std::getenv("P31_HOLD")) {
+            // Long enough for the editor to notice that no audio arrives.
+            running.store(false);
+            audio.join();
+            [[NSRunLoop mainRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:1.0]];
+        }
         if (hoverTarget) {
-            [hoverTarget mouseMoved:hoverMove];
+            if (hoverPress) [hoverTarget mouseDown:hoverMove];
+            else [hoverTarget mouseMoved:hoverMove];
             [[NSRunLoop mainRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:kSettle]];
         }
         bool ok = false;
@@ -393,7 +420,7 @@ int main(int argc, const char* argv[]) {
         }
 
         running.store(false);
-        audio.join();
+        if (audio.joinable()) audio.join();
         if (std::getenv("P31_DUMP_STATE")) std::printf("%s", saveStateText(plugin).c_str());
         gui->destroy(plugin);
         [window close];
