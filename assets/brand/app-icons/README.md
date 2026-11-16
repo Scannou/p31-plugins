@@ -8,6 +8,7 @@ on a dark tile, showing what the app shows, in one phosphor colour:
 | `p31-spectrum` | P31 Spectrum | P7 blue `#6FB7FF` | a spectrum curve over its filled area |
 | `p31-scope` | P31 Scope | P31 green `#4CFF7C` | the mark's own 3:1 Lissajous figure |
 | `p31-spectrogram` | P31 Spectrogram | P3 amber `#FFB000` | three notes, each a fundamental with its harmonics |
+| `p31-suite` | P31 Suite | P4 white `#E6EDF2` ring and dividers | the three panels as the app first shows them, each a small version of its own icon's figure in its own colour |
 
 The `.svg` is the source (1024 × 1024; the tile is 824 × 824 at 100,100, as
 macOS lays app icons out). The `.icns` is what the app bundle carries: CMake

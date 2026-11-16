@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<title>P31 Suite</title>
+<!-- App icon: the P31 mark's ring as a round CRT screen showing what the app shows: the three
+     panels, each in its own app's phosphor colour, behind a P4 white (#E6EDF2) ring. Tile: 824 x 824
+     at 100,100, as macOS app icons are laid out. Rendered to an .icns by scripts/icons.sh. -->
+<defs>
+<linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#1C2024"/>
+<stop offset="1" stop-color="#0B0D0F"/>
+</linearGradient>
+<radialGradient id="screen" cx="0.5" cy="0.5" r="0.5">
+<stop offset="0" stop-color="#E6EDF2" stop-opacity="0.08"/>
+<stop offset="1" stop-color="#E6EDF2" stop-opacity="0.02"/>
+</radialGradient>
+<filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+<feGaussianBlur stdDeviation="14"/>
+</filter>
+<filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+<feGaussianBlur stdDeviation="1.8"/>
+</filter>
+<clipPath id="inside"><circle cx="50" cy="50" r="45.5"/></clipPath>
+<clipPath id="spectrum"><rect x="40.0" y="0" width="60" height="50.0"/></clipPath>
+<linearGradient id="fill" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+<stop offset="0" stop-color="#6FB7FF" stop-opacity="0.42"/>
+<stop offset="1" stop-color="#6FB7FF" stop-opacity="0.04"/>
+</linearGradient>
+</defs>
+<rect x="100" y="112" width="824" height="824" rx="185" fill="#000" fill-opacity="0.35" filter="url(#shadow)"/>
+<rect x="100" y="100" width="824" height="824" rx="185" fill="url(#tile)"/>
+<rect x="101.5" y="101.5" width="821" height="821" rx="183.5" fill="none" stroke="#fff" stroke-opacity="0.07" stroke-width="3"/>
+<!-- The mark's 100 x 100 box, scaled to a 640 box in the middle of the tile. -->
+<g transform="translate(192 192) scale(6.4)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+<circle cx="50" cy="50" r="45.5" fill="url(#screen)" stroke="none"/>
+<g clip-path="url(#inside)">
+<!-- Scope, left: the mark's 3:1 Lissajous figure. -->
+<g stroke="#4CFF7C">
+<g filter="url(#glow)" stroke-opacity="0.55"><path stroke-width="4.4" d="M33.80,50.00 L33.78,47.03 L33.74,44.13 L33.66,41.37 L33.56,38.83 L33.42,36.56 L33.25,34.63 L33.06,33.07 L32.83,31.93 L32.58,31.23 L32.30,31.00 L31.99,31.23 L31.66,31.93 L31.30,33.07 L30.92,34.63 L30.52,36.56 L30.09,38.83 L29.65,41.37 L29.18,44.13 L28.70,47.03 L28.20,50.00 L27.68,52.97 L27.16,55.87 L26.61,58.63 L26.06,61.17 L25.50,63.44 L24.93,65.37 L24.35,66.93 L23.77,68.07 L23.19,68.77 L22.60,69.00 L22.01,68.77 L21.43,68.07 L20.85,66.93 L20.27,65.37 L19.70,63.44 L19.14,61.17 L18.59,58.63 L18.04,55.87 L17.52,52.97 L17.00,50.00 L16.50,47.03 L16.02,44.13 L15.55,41.37 L15.11,38.83 L14.68,36.56 L14.28,34.63 L13.90,33.07 L13.54,31.93 L13.21,31.23 L12.90,31.00 L12.62,31.23 L12.37,31.93 L12.14,33.07 L11.95,34.63 L11.78,36.56 L11.64,38.83 L11.54,41.37 L11.46,44.13 L11.42,47.03 L11.40,50.00 L11.42,52.97 L11.46,55.87 L11.54,58.63 L11.64,61.17 L11.78,63.44 L11.95,65.37 L12.14,66.93 L12.37,68.07 L12.62,68.77 L12.90,69.00 L13.21,68.77 L13.54,68.07 L13.90,66.93 L14.28,65.37 L14.68,63.44 L15.11,61.17 L15.55,58.63 L16.02,55.87 L16.50,52.97 L17.00,50.00 L17.52,47.03 L18.04,44.13 L18.59,41.37 L19.14,38.83 L19.70,36.56 L20.27,34.63 L20.85,33.07 L21.43,31.93 L22.01,31.23 L22.60,31.00 L23.19,31.23 L23.77,31.93 L24.35,33.07 L24.93,34.63 L25.50,36.56 L26.06,38.83 L26.61,41.37 L27.16,44.13 L27.68,47.03 L28.20,50.00 L28.70,52.97 L29.18,55.87 L29.65,58.63 L30.09,61.17 L30.52,63.44 L30.92,65.37 L31.30,66.93 L31.66,68.07 L31.99,68.77 L32.30,69.00 L32.58,68.77 L32.83,68.07 L33.06,66.93 L33.25,65.37 L33.42,63.44 L33.56,61.17 L33.66,58.63 L33.74,55.87 L33.78,52.97 Z"/></g>
+<path stroke-width="3" d="M33.80,50.00 L33.78,47.03 L33.74,44.13 L33.66,41.37 L33.56,38.83 L33.42,36.56 L33.25,34.63 L33.06,33.07 L32.83,31.93 L32.58,31.23 L32.30,31.00 L31.99,31.23 L31.66,31.93 L31.30,33.07 L30.92,34.63 L30.52,36.56 L30.09,38.83 L29.65,41.37 L29.18,44.13 L28.70,47.03 L28.20,50.00 L27.68,52.97 L27.16,55.87 L26.61,58.63 L26.06,61.17 L25.50,63.44 L24.93,65.37 L24.35,66.93 L23.77,68.07 L23.19,68.77 L22.60,69.00 L22.01,68.77 L21.43,68.07 L20.85,66.93 L20.27,65.37 L19.70,63.44 L19.14,61.17 L18.59,58.63 L18.04,55.87 L17.52,52.97 L17.00,50.00 L16.50,47.03 L16.02,44.13 L15.55,41.37 L15.11,38.83 L14.68,36.56 L14.28,34.63 L13.90,33.07 L13.54,31.93 L13.21,31.23 L12.90,31.00 L12.62,31.23 L12.37,31.93 L12.14,33.07 L11.95,34.63 L11.78,36.56 L11.64,38.83 L11.54,41.37 L11.46,44.13 L11.42,47.03 L11.40,50.00 L11.42,52.97 L11.46,55.87 L11.54,58.63 L11.64,61.17 L11.78,63.44 L11.95,65.37 L12.14,66.93 L12.37,68.07 L12.62,68.77 L12.90,69.00 L13.21,68.77 L13.54,68.07 L13.90,66.93 L14.28,65.37 L14.68,63.44 L15.11,61.17 L15.55,58.63 L16.02,55.87 L16.50,52.97 L17.00,50.00 L17.52,47.03 L18.04,44.13 L18.59,41.37 L19.14,38.83 L19.70,36.56 L20.27,34.63 L20.85,33.07 L21.43,31.93 L22.01,31.23 L22.60,31.00 L23.19,31.23 L23.77,31.93 L24.35,33.07 L24.93,34.63 L25.50,36.56 L26.06,38.83 L26.61,41.37 L27.16,44.13 L27.68,47.03 L28.20,50.00 L28.70,52.97 L29.18,55.87 L29.65,58.63 L30.09,61.17 L30.52,63.44 L30.92,65.37 L31.30,66.93 L31.66,68.07 L31.99,68.77 L32.30,69.00 L32.58,68.77 L32.83,68.07 L33.06,66.93 L33.25,65.37 L33.42,63.44 L33.56,61.17 L33.66,58.63 L33.74,55.87 L33.78,52.97 Z"/>
+</g>
+<!-- Spectrum, top right: the curve of the P31 Spectrum icon. -->
+<g stroke="#6FB7FF" clip-path="url(#spectrum)">
+<path d="M43.00,40.95 C43.90,39.93 46.61,38.34 48.42,34.82 C50.22,31.29 52.21,23.45 53.83,19.82 C55.46,16.18 56.72,12.66 58.17,13.00 C59.61,13.34 61.05,19.02 62.50,21.86 C63.95,24.71 65.39,29.59 66.83,30.05 C68.28,30.50 69.72,26.41 71.17,24.59 C72.61,22.77 74.05,18.80 75.50,19.14 C76.95,19.48 78.21,23.91 79.83,26.64 C81.46,29.36 83.45,33.23 85.25,35.50 C87.05,37.77 89.04,39.03 90.67,40.27 C92.29,41.52 94.28,42.54 95.00,43.00 L95.00,50.00 L43.00,50.00 Z" fill="url(#fill)" stroke="none"/>
+<g filter="url(#glow)" stroke-opacity="0.55"><path stroke-width="4.4" d="M43.00,40.95 C43.90,39.93 46.61,38.34 48.42,34.82 C50.22,31.29 52.21,23.45 53.83,19.82 C55.46,16.18 56.72,12.66 58.17,13.00 C59.61,13.34 61.05,19.02 62.50,21.86 C63.95,24.71 65.39,29.59 66.83,30.05 C68.28,30.50 69.72,26.41 71.17,24.59 C72.61,22.77 74.05,18.80 75.50,19.14 C76.95,19.48 78.21,23.91 79.83,26.64 C81.46,29.36 83.45,33.23 85.25,35.50 C87.05,37.77 89.04,39.03 90.67,40.27 C92.29,41.52 94.28,42.54 95.00,43.00"/></g>
+<path stroke-width="3" d="M43.00,40.95 C43.90,39.93 46.61,38.34 48.42,34.82 C50.22,31.29 52.21,23.45 53.83,19.82 C55.46,16.18 56.72,12.66 58.17,13.00 C59.61,13.34 61.05,19.02 62.50,21.86 C63.95,24.71 65.39,29.59 66.83,30.05 C68.28,30.50 69.72,26.41 71.17,24.59 C72.61,22.77 74.05,18.80 75.50,19.14 C76.95,19.48 78.21,23.91 79.83,26.64 C81.46,29.36 83.45,33.23 85.25,35.50 C87.05,37.77 89.04,39.03 90.67,40.27 C92.29,41.52 94.28,42.54 95.00,43.00"/>
+</g>
+<!-- Spectrogram, bottom right: two notes, each a fundamental with its harmonics. -->
+<g stroke="#FFB000" stroke-linecap="butt">
+<g filter="url(#glow)">
+<path stroke-width="4.9" stroke-opacity="0.50" d="M44.50,86.00 H61.50"/>
+<path stroke-width="4.3" stroke-opacity="0.42" d="M44.50,76.50 H61.50"/>
+<path stroke-width="3.9" stroke-opacity="0.33" d="M44.50,70.94 H61.50"/>
+<path stroke-width="3.6" stroke-opacity="0.25" d="M44.50,67.00 H61.50"/>
+<path stroke-width="3.3" stroke-opacity="0.19" d="M44.50,63.94 H61.50"/>
+<path stroke-width="4.9" stroke-opacity="0.50" d="M65.50,78.00 H84.00"/>
+<path stroke-width="4.3" stroke-opacity="0.42" d="M65.50,68.50 H84.00"/>
+<path stroke-width="3.9" stroke-opacity="0.33" d="M65.50,62.94 H84.00"/>
+<path stroke-width="3.6" stroke-opacity="0.25" d="M65.50,59.00 H84.00"/>
+<path stroke-width="3.3" stroke-opacity="0.19" d="M65.50,55.94 H84.00"/>
+</g>
+<path stroke-width="3.3" stroke-opacity="1.00" d="M44.50,86.00 H61.50"/>
+<path stroke-width="2.7" stroke-opacity="0.85" d="M44.50,76.50 H61.50"/>
+<path stroke-width="2.3" stroke-opacity="0.66" d="M44.50,70.94 H61.50"/>
+<path stroke-width="2.0" stroke-opacity="0.50" d="M44.50,67.00 H61.50"/>
+<path stroke-width="1.7" stroke-opacity="0.38" d="M44.50,63.94 H61.50"/>
+<path stroke-width="3.3" stroke-opacity="1.00" d="M65.50,78.00 H84.00"/>
+<path stroke-width="2.7" stroke-opacity="0.85" d="M65.50,68.50 H84.00"/>
+<path stroke-width="2.3" stroke-opacity="0.66" d="M65.50,62.94 H84.00"/>
+<path stroke-width="2.0" stroke-opacity="0.50" d="M65.50,59.00 H84.00"/>
+<path stroke-width="1.7" stroke-opacity="0.38" d="M65.50,55.94 H84.00"/>
+</g>
+<!-- The dividers between the panels. -->
+<path stroke="#E6EDF2" stroke-width="1.4" stroke-opacity="0.45" stroke-linecap="butt" d="M40.0,0 V100 M40.0,50.0 H100"/>
+</g>
+<circle cx="50" cy="50" r="47" stroke="#E6EDF2" stroke-width="2.5"/>
+</g>
+</svg>
