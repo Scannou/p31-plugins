@@ -67,6 +67,7 @@ struct SpectrogramSettings {
 
     // Display
     int  topDb = 0;                // level mapped to the brightest color (dBFS)
+    bool autoGain = false;         // the top level follows the material instead
     int  rangeDb = 60;             // dB span below the top level
     int  slopeTenths = 0;          // tilt around 1 kHz, tenths of dB per octave
     int  scrollSpeed = 120;        // points per second
@@ -140,6 +141,7 @@ void visitFields(SpectrogramSettings& s, Visitor&& v) {
     v("min_hz", s.minHz);
     v("max_hz", s.maxHz);
     v("top_db", s.topDb);
+    v("auto_gain", s.autoGain);
     v("range_db", s.rangeDb);
     v("slope_tenths", s.slopeTenths);
     v("scroll_speed", s.scrollSpeed);

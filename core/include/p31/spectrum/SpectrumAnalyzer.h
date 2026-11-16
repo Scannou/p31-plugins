@@ -77,6 +77,15 @@ public:
     // since the previous tick.
     bool tick(double dt);
 
+    // The loudest level the next tick() will show, in dB and not limited to
+    // the display (slope included, side channel not): for a top that follows
+    // the material. -inf when there is nothing new to show (attack / decay
+    // between spectra) or it is silent. Call before tick().
+    float loudestDb();
+    // Move the top of the display to `topDb`, keeping the levels already
+    // shown at their dB values (they shift down when the top rises).
+    void setTopDb(float topDb);
+
     // Drop all levels and history (the editor was hidden).
     void reset();
 
@@ -113,6 +122,7 @@ private:
     bool _live = false;       // audio arrived since the last tick
     float _hopRmsKeep = 0.0f; // RMS average decay per hop
     std::vector<float> _mag;  // scratch: per-bin magnitude
+    std::vector<float> _probe; // scratch: loudestDb()'s levels per bar
 
     // Attack/decay: the level each layer eases towards.
     std::vector<float> _target, _targetSide;

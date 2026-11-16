@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace p31::spectrum {
 
@@ -35,6 +36,10 @@ namespace {
     constexpr double kPeakHistoryStep = 1.0 / 60.0;
     // Attack/decay levels this low with nothing to rise to snap to zero.
     constexpr float kSilentLevel = 0.0015f;
+    // loudestDb() reads the bars on a scale this much taller than the
+    // display above and below, so no level it can meet is cut off.
+    constexpr float kProbeAboveDb = 60.0f;
+    constexpr float kProbeBelowDb = 140.0f;
 }
 
 SpectrumAnalyzer::SpectrumAnalyzer() {
@@ -318,6 +323,48 @@ bool SpectrumAnalyzer::tick(double dt) {
     for (size_t i = 0; i < _sideBars.size() && !active; ++i) active = _sideBars[i] > 0.0f;
     _active = active;
     return live;
+}
+
+float SpectrumAnalyzer::loudestDb() {
+    constexpr float kNone = -std::numeric_limits<float>::infinity();
+    if (_bandsDirty) rebuildBands();
+    const size_t bins = _binPow.size();
+    if (_bars.size() != static_cast<size_t>(_bands.bandCount()) || bins != _bands.binCount() || _mag.size() != bins) {
+        return kNone;
+    }
+    const bool rms = _settings.smoothingMode == SmoothingRms;
+    if (!rms && !_fresh) return kNone;
+    const std::vector<float>& power = rms ? _binPow : _tickMax;
+    for (size_t b = 0; b < bins; ++b) _mag[b] = std::sqrt(power[b]);
+
+    // The same reading the bars get, on the taller scale.
+    const float top = _settings.topDb + kProbeAboveDb;
+    const float range = _settings.rangeDb + kProbeAboveDb + kProbeBelowDb;
+    _probe.resize(_bars.size());
+    _bands.read(_mag.data(), top, range, _probe.data());
+    const float loudest = *std::max_element(_probe.begin(), _probe.end());
+    return loudest > 0.0f ? top - range + loudest * range : kNone;
+}
+
+void SpectrumAnalyzer::setTopDb(float topDb) {
+    if (topDb == _settings.topDb) return;
+    // Display units per dB; a level at the floor (0) stays there: it stands
+    // for anything below the display, not for the floor's level.
+    const float shift = (_settings.topDb - topDb) / _settings.rangeDb;
+    _settings.topDb = topDb;
+    const auto move = [shift](std::vector<float>& layer) {
+        for (float& v : layer) {
+            if (v > 0.0f) v = std::clamp(v + shift, 0.0f, 1.0f);
+        }
+    };
+    move(_bars);
+    move(_shadow);
+    move(_peaks);
+    move(_target);
+    move(_sideBars);
+    move(_targetSide);
+    move(_peakQ);
+    for (auto& entry : _peakRing) move(entry);
 }
 
 void SpectrumAnalyzer::reset() {

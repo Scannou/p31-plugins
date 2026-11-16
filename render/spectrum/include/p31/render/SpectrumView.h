@@ -26,6 +26,10 @@ NS_ASSUME_NONNULL_BEGIN
 // one bar per kAutoBarPitch points.
 - (NSInteger)autoBarCount;
 
+// Level at the top of the plot while auto gain moves it (the settings' Top
+// otherwise). Redraws.
+- (void)setTopDb:(double)topDb;
+
 // Sample rate of the audio shown. The analyzer stops at half of it, and so do
 // the frequency grid, labels and readout.
 - (void)setSampleRate:(double)rate;

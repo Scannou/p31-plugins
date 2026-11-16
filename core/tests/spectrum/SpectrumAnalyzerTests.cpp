@@ -83,6 +83,69 @@ TEST_CASE("A steady sine settles at its level in both smoothing modes") {
     }
 }
 
+TEST_CASE("loudestDb reads the level the bars show, also past the top") {
+    for (int mode : {SmoothingAttackDecay, SmoothingRms}) {
+        CAPTURE(mode);
+        SpectrumAnalyzer::Settings s = baseSettings(mode);
+        s.topDb = -30.0f;   // the -6 dBFS sine is far above the display
+        SpectrumAnalyzer a;
+        a.configure(s);
+        a.setSampleRate(kRate);
+        Driver d{a};
+        d.amplitude = 0.5f;
+        d.run(2.0);
+        // One more frame, read before its tick as the editor does.
+        std::vector<float> frame(800 * 2);
+        for (size_t i = 0; i < 800; ++i) {
+            frame[2 * i] = frame[2 * i + 1] = 0.5f * static_cast<float>(std::sin(d.phase));
+            d.phase += kTwoPi * d.hz / kRate;
+        }
+        a.process(frame.data(), 800);
+        const float loudest = a.loudestDb();
+        CHECK(loudest <= -6.02f + 0.2f);
+        CHECK(loudest >= -6.02f - 1.5f);
+        CHECK(maxOf(a.bars()) == doctest::Approx(1.0f));
+        a.tick(1.0 / 60.0);
+        // Attack / decay has nothing new until the next spectrum.
+        if (mode == SmoothingAttackDecay) CHECK(std::isinf(a.loudestDb()));
+    }
+
+    SpectrumAnalyzer silent;
+    silent.configure(baseSettings(SmoothingRms));
+    silent.setSampleRate(kRate);
+    Driver quiet{silent};
+    quiet.amplitude = 0.0f;
+    quiet.run(0.5);
+    CHECK(std::isinf(silent.loudestDb()));
+}
+
+TEST_CASE("setTopDb keeps the levels shown at their dB values") {
+    SpectrumAnalyzer::Settings s = baseSettings(SmoothingAttackDecay);
+    s.peakHoldSec = 1.0f;
+    SpectrumAnalyzer a;
+    a.configure(s);
+    a.setSampleRate(kRate);
+    Driver d{a};
+    d.amplitude = 0.5f;
+    d.run(1.0);
+    const std::vector<float> bars = a.bars(), peaks = a.peaks();
+
+    // 9 dB lower: everything shown rises by 9 dB of the 90 dB range.
+    a.setTopDb(-9.0f);
+    CHECK(a.settings().topDb == -9.0f);
+    for (size_t i = 0; i < bars.size(); ++i) {
+        CAPTURE(i);
+        const float expected = bars[i] > 0.0f ? std::min(1.0f, bars[i] + 0.1f) : 0.0f;
+        CHECK(a.bars()[i] == doctest::Approx(expected));
+        CHECK(a.peaks()[i] == doctest::Approx(peaks[i] > 0.0f ? std::min(1.0f, peaks[i] + 0.1f) : 0.0f));
+    }
+    // And back: what was not cut off at the top returns to where it was.
+    a.setTopDb(0.0f);
+    for (size_t i = 0; i < bars.size(); ++i) {
+        if (bars[i] > 0.0f && bars[i] + 0.1f < 1.0f) CHECK(a.bars()[i] == doctest::Approx(bars[i]));
+    }
+}
+
 TEST_CASE("Bars fall to silence after the audio stops") {
     for (bool hostKeepsCalling : {false, true}) {
         for (int mode : {SmoothingAttackDecay, SmoothingRms}) {

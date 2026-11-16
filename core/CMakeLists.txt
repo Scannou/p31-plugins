@@ -14,6 +14,7 @@ target_compile_options(p31-pffft PRIVATE -w)
 
 add_library(p31-core STATIC
     src/AudioRing.cpp
+    src/AutoTop.cpp
     src/PresetStore.cpp
     src/StateCodec.cpp
     src/meter/Detectors.cpp

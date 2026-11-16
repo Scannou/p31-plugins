@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace p31::spectrogram {
 
@@ -259,11 +260,11 @@ void SpectrogramEngine::renderColumn(const float* samples, float* out) {
         if (st.reassign) reassignStage(st);
     }
 
-    const float floorDb = _settings.topDb - _settings.rangeDb;
-    const float invRange = 1.0f / _settings.rangeDb;
+    _columnDb.resize(static_cast<size_t>(_rows));
+    float loudest = -std::numeric_limits<float>::infinity();
     for (int r = 0; r < _rows; ++r) {
         const Row& row = _rowTable[static_cast<size_t>(r)];
-        if (row.a < 0) { out[r] = 0.0f; continue; }
+        if (row.a < 0) { _columnDb[static_cast<size_t>(r)] = -std::numeric_limits<float>::infinity(); continue; }
 
         auto level = [&](int stage, const Tap& tap) {
             const Stage& st = _stages[stage];
@@ -274,7 +275,20 @@ void SpectrogramEngine::renderColumn(const float* samples, float* out) {
         if (row.b != row.a) {
             db += (level(row.b, row.tapB) - db) * row.mix;
         }
-        const float v = (db + row.tilt - floorDb) * invRange;
+        db += row.tilt;
+        _columnDb[static_cast<size_t>(r)] = db;
+        loudest = std::max(loudest, db);
+    }
+    _loudestDb = loudest;
+    remapColumn(out);
+}
+
+void SpectrogramEngine::remapColumn(float* out) const {
+    const float floorDb = _settings.topDb - _settings.rangeDb;
+    const float invRange = 1.0f / _settings.rangeDb;
+    const int rows = std::min(_rows, static_cast<int>(_columnDb.size()));
+    for (int r = 0; r < rows; ++r) {
+        const float v = (_columnDb[static_cast<size_t>(r)] - floorDb) * invRange;
         out[r] = v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v);
     }
 }

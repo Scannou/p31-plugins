@@ -9,6 +9,8 @@
 
 #import <QuartzCore/QuartzCore.h>
 
+#include <p31/core/AutoTop.h>
+
 #include <algorithm>
 #include <cmath>
 #include <deque>
@@ -145,8 +147,9 @@ namespace {
     int      _scale;
     int      _minHz;
     int      _maxHz;
-    int      _topDb;
+    double   _topDb;
     int      _rangeDb;
+    bool     _autoTop;              // auto gain moves _topDb
     int      _colormap;
     int      _gridOpacity;
     bool     _showFreqAxis;
@@ -221,6 +224,7 @@ namespace {
 
     _topDb        = s.topDb;
     _rangeDb      = s.rangeDb;
+    _autoTop      = s.autoGain;
     _colormap     = s.colormap;
     _gridOpacity  = s.gridOpacity;
     _showFreqAxis = s.showFreqAxis;
@@ -688,26 +692,50 @@ static NSString *compactHz(double f) {
 
 // dB levels to label on the color bar for a panel of `height` points, top
 // first, and the legend width they need. The top label carries the unit, as
-// in P31 Spectrum.
+// in P31 Spectrum. With auto gain the width also fits the labels of the
+// lowest top it can reach, so the plot does not change size as it moves.
 - (void)layoutDbLabelsForHeight:(CGFloat)height {
     NSDictionary *attrs = @{NSFontAttributeName: labelFont(_dbFontSize, NSFontWeightRegular)};
+    CGFloat widest = [self dbLabels:_dbLabels forTop:_topDb height:height attributes:attrs];
+    if (_autoTop) {
+        std::vector<std::pair<int, NSString *>> lowest;
+        widest = std::max(widest, [self dbLabels:lowest forTop:p31::AutoTop::Settings{}.minTopDb height:height
+                                      attributes:attrs]);
+    }
+    _legendWidth = kLegendGap + kBarWidth + kBarLabelGap + std::ceil(widest) + kEdgeGap;
+}
+
+// The labels for a top of `top` dB into `labels`; returns the widest.
+- (CGFloat)dbLabels:(std::vector<std::pair<int, NSString *>> &)labels
+             forTop:(double)top
+             height:(CGFloat)height
+         attributes:(NSDictionary *)attrs {
     const CGFloat labelH = [@"0" sizeWithAttributes:attrs].height;
     const CGFloat barH = height - 2.0 * (std::ceil(labelH / 2.0) + 1.0);
 
-    _dbLabels.clear();
+    labels.clear();
     int step = 60;
     for (int s : {10, 20, 30}) {
         if (barH * s / _rangeDb >= labelH + 4.0) { step = s; break; }
     }
-    const int floorDb = _topDb - _rangeDb;
+    const double floorDb = top - _rangeDb;
     CGFloat widest = 0.0;
-    for (int db = (int)std::floor((double)_topDb / step) * step; db >= floorDb; db -= step) {
-        NSString *text = _dbLabels.empty() ? [NSString stringWithFormat:@"%d dB", db]
-                                           : [NSString stringWithFormat:@"%d", db];
+    for (int db = (int)std::floor(top / step) * step; db >= floorDb; db -= step) {
+        NSString *text = labels.empty() ? [NSString stringWithFormat:@"%d dB", db]
+                                        : [NSString stringWithFormat:@"%d", db];
         widest = std::max(widest, [text sizeWithAttributes:attrs].width);
-        _dbLabels.emplace_back(db, text);
+        labels.emplace_back(db, text);
     }
-    _legendWidth = kLegendGap + kBarWidth + kBarLabelGap + std::ceil(widest) + kEdgeGap;
+    return widest;
+}
+
+- (void)setTopDb:(double)topDb {
+    if (topDb == _topDb) return;
+    _topDb = topDb;
+    // The labels move along the bar; the legend keeps its width.
+    NSDictionary *attrs = @{NSFontAttributeName: labelFont(_dbFontSize, NSFontWeightRegular)};
+    [self dbLabels:_dbLabels forTop:_topDb height:_plotRect.size.height attributes:attrs];
+    if (_drawLegend) [_overlayView setNeedsDisplay:YES];
 }
 
 // Color bar beside the frequency labels with the dB level each color stands for.
@@ -733,7 +761,7 @@ static NSString *compactHz(double f) {
                                                    colorSpace:[self lutColorSpace]];
     [gradient drawInRect:bar angle:90.0];
 
-    const int floorDb = _topDb - _rangeDb;
+    const double floorDb = _topDb - _rangeDb;
     for (const auto &[db, text] : _dbLabels) {
         const CGFloat y = NSMinY(bar) + bar.size.height * (CGFloat)(db - floorDb) / _rangeDb;
         [text drawAtPoint:NSMakePoint(NSMaxX(bar) + kBarLabelGap, y - labelH / 2.0) withAttributes:attrs];

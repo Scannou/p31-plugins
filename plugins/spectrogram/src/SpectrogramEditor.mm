@@ -14,6 +14,7 @@
 #import <p31/render/SpectrogramView.h>
 
 #include <p31/core/AudioRing.h>
+#include <p31/core/AutoTop.h>
 #include <p31/plugin/EditorSupport.h>
 #include <p31/spectrogram/SpectrogramClock.h>
 #include <p31/spectrogram/SpectrogramEngine.h>
@@ -160,7 +161,17 @@ private:
         [_root setBrandLightColor:darkened(accent) darkColor:accent];
         [_root setAppearanceMode:s.appearance];
         [_view applySettings:s];
-        _engine.configure(engineSettings(s));
+        // Auto gain starts from the Top level setting when it is switched on.
+        SpectrogramEngine::Settings e = engineSettings(s);
+        if (s.autoGain) {
+            _autoTop.configure(p31::AutoTop::Settings::forDisplay(static_cast<float>(s.rangeDb)));
+            if (!_autoTopOn) _autoTop.reset(static_cast<float>(s.topDb));
+            e.topDb = _autoTop.topDb();
+            [_view setTopDb:e.topDb];
+        }
+        _autoTopOn = s.autoGain;
+        _drawnTop = e.topDb;
+        _engine.configure(e);
         _channel = s.channel;
         _scrollSpeed = s.scrollSpeed;
     }
@@ -290,11 +301,22 @@ private:
             if (end > _renderedEnd) {
                 readWindow(static_cast<uint64_t>(end), window);
                 _engine.renderColumn(_samples.data(), _levels.data());
+                // A louder column moves the top before it is drawn, so it
+                // already fits.
+                if (_autoTopOn) {
+                    const float top = _autoTop.process(_engine.loudestDb(), hop);
+                    if (top != _drawnTop) {
+                        _engine.setTopDb(top);
+                        _engine.remapColumn(_levels.data());
+                        _drawnTop = top;
+                    }
+                }
                 [_view appendColumn:_levels.data() rows:rows];
                 _renderedEnd = end;
             }
             _clock.advance(hop);
         }
+        if (_autoTopOn) [_view setTopDb:_drawnTop];
         // Every frame, so the sub-column phase keeps the picture moving evenly.
         [_view flushWithPhase:_clock.phase(hop)];
     }
@@ -305,6 +327,9 @@ private:
     SpectrogramEngine _engine;
     SpectrogramClock _clock;
     p31::editor::ParamWatch _params;
+    p31::AutoTop _autoTop;           // the top level while auto gain is on
+    bool _autoTopOn = false;
+    float _drawnTop = 0.0f;          // the top the newest column was drawn with
     std::vector<float> _lr;          // interleaved L/R of one analysis window
     std::vector<float> _samples;     // the window as the analysed mono signal
     std::vector<float> _levels;      // one column
@@ -340,9 +365,17 @@ Form SpectrogramEditor::buildForm() {
         for (int speed : kScrollSpeeds) speeds.emplace_back(std::to_string(speed) + " pt/s", speed);
         f.push_back(popup("Scroll speed", speeds, [p] { return p->scrollSpeed; }, [p](int v) { p->scrollSpeed = v; }));
     }
-    f.push_back(slider("Top level", kMinTopDb, kMaxTopDb, [p] { return p->topDb; },
-                       [p](double v) { p->topDb = static_cast<int>(v); }, [](double v) { return fmt("%.0f dB", v); },
-                       "Level shown in the brightest color. Lower it for quiet material."));
+    f.push_back(checkbox("Auto gain", [p] { return p->autoGain; }, [p](bool v) { p->autoGain = v; },
+                         "The top level follows the loudest recent level, so quiet and loud material both use the "
+                         "whole color range. The dB scale moves with it; columns already drawn keep their colors."));
+    {
+        Row r = slider("Top level", kMinTopDb, kMaxTopDb, [p] { return p->topDb; },
+                       [p](double v) { p->topDb = static_cast<int>(v); },
+                       [](double v) { return fmt("%.0f dB", v); },
+                       "Level shown in the brightest color. Lower it for quiet material.");
+        r.enabled = [p] { return !p->autoGain; };
+        f.push_back(r);
+    }
     f.push_back(slider("Range", kMinRangeDb, kMaxRangeDb, [p] { return p->rangeDb; },
                        [p](double v) { p->rangeDb = static_cast<int>(v); }, [](double v) { return fmt("%.0f dB", v); },
                        "dB span below the top level. Smaller: more contrast, less quiet detail."));

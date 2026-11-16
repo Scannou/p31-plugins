@@ -105,6 +105,7 @@ struct SpectrumSettings {
     int  gapPercent = 12;          // gap between bars, % of slot width
     int  orientation = OrientationHorizontal;
     int  topDb = -8;               // level at the top of the display
+    bool autoGain = false;         // the top follows the material instead
     int  rangeDb = 60;             // dB from the top to the bottom
 
     // Appearance
@@ -197,6 +198,7 @@ void visitFields(SpectrumSettings& s, Visitor&& v) {
     v("gap_percent", s.gapPercent);
     v("orientation", s.orientation);
     v("top_db", s.topDb);
+    v("auto_gain", s.autoGain);
     v("range_db", s.rangeDb);
     v("show_db_guides", s.showDbGuides);
     v("show_freq_axis", s.showFreqAxis);
