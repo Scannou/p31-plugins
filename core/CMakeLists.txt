@@ -16,6 +16,12 @@ add_library(p31-core STATIC
     src/AudioRing.cpp
     src/PresetStore.cpp
     src/StateCodec.cpp
+    src/meter/Detectors.cpp
+    src/meter/Loudness.cpp
+    src/meter/MeterEngine.cpp
+    src/meter/MeterLayout.cpp
+    src/meter/MeterScale.cpp
+    src/meter/TruePeak.cpp
     src/scope/PhosphorBuffer.cpp
     src/scope/StereoAnalysis.cpp
     src/spectrogram/SpectrogramEngine.cpp

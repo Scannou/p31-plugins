@@ -4,6 +4,13 @@ add_executable(p31-core-tests
     PassThroughTests.cpp
     PresetStoreTests.cpp
     StateCodecTests.cpp
+    meter/DetectorsTests.cpp
+    meter/LoudnessTests.cpp
+    meter/MeterEngineTests.cpp
+    meter/MeterLayoutTests.cpp
+    meter/MeterScaleTests.cpp
+    meter/MeterSettingsTests.cpp
+    meter/TruePeakTests.cpp
     scope/PhosphorBufferTests.cpp
     scope/ScopeLayoutTests.cpp
     scope/ScopeSettingsTests.cpp
