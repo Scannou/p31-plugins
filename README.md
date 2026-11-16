@@ -5,9 +5,9 @@
 
 # p31-plugins
 
-A spectrum analyzer, a vectorscope and a spectrogram for macOS, as CLAP, VST3
-and Audio Unit plugins and standalone apps, plus P31 Suite, which shows all
-three in one window. Ported from the foobar2000 components in
+A spectrum analyzer, a vectorscope, a spectrogram and a level meter for macOS,
+as CLAP, VST3 and Audio Unit plugins and standalone apps, plus P31 Suite, which
+shows all four in one window. Ported from the foobar2000 components in
 [fb2k-components-mac-suite](https://github.com/JendaT/fb2k-components-mac-suite).
 Audio passes through untouched, with zero latency.
 
@@ -51,20 +51,41 @@ signed yet, and each release's notes explain how to open one.
   horizontal one lining up with P31 Spectrum
 - Nine colormaps, a ramp per P31 Spectrum theme, or four colours of your own
 
+## P31 Meter
+
+| Digital | Analog VU |
+|---|---|
+| ![P31 Meter, peak / RMS bars, loudness bars and figures on a test signal](assets/screenshots/p31-meter.png) | ![P31 Meter as two analog VU faces](assets/screenshots/p31-meter-analog.png) |
+
+- L / R bars: RMS as the wide bar, the peak as a slim column above it, a hold
+  line, clip lights that stay lit, the highest peak above each bar
+- True peak (4x oversampled, as BS.1770 describes) or sample peak; dBFS or
+  K-20 / K-14 / K-12 scales, extended-top or linear spacing, LED segments
+- Loudness after BS.1770 / EBU R128: momentary and short-term bars with a
+  target marker, gated integrated loudness, loudness range, true peak max and
+  PLR. It keeps measuring while the plugin window is closed
+- Phase correlation and balance bars
+- Analog VU style: Vintage, Dark or theme-coloured needle faces, VU ballistics
+  or DIN / BBC / Nordic style PPM, adjustable reference level, peak LED
+- Click the bars or readouts to reset the peaks, the loudness bars or figures
+  to start a new loudness measurement; both are in the right-click menu too,
+  with the switch between Digital and Analog VU
+
 ## P31 Suite
 
-![P31 Suite, the three panels on a test signal](assets/screenshots/p31-suite.png)
+![P31 Suite, the four panels on a test signal](assets/screenshots/p31-suite.png)
 
-- The spectrum, the scope and the spectrogram as panels of one window, on the
-  same audio; each panel is the plugin of that name, with its own settings
-  and presets
+- The spectrum, the scope, the spectrogram and the meter as panels of one
+  window, on the same audio; each panel is the plugin of that name, with its
+  own settings and presets
 - Drag the line between two panels to resize them
 - Hover over a panel and drag its move handle (the arrows, top right) to put
   the panel somewhere else: on a side of another panel, in the middle of one
   to trade places, or along an edge of the window. The place lights up before
   you drop
 - The × beside the handle hides a panel; right-click → Panels brings it back.
-  A hidden panel does no work
+  A hidden panel does no work (the meter's loudness measurement pauses with
+  it)
 - Freeze, Gain and the standalone app's Source are shared by all panels
 
 ## Using the plugins
@@ -77,8 +98,8 @@ signed yet, and each release's notes explain how to open one.
   `~/Library/Audio/Presets/P31/<plugin>/`) and "Use Current Settings for New
   Instances". Loading a preset keeps the instance's light / dark appearance.
 - **Parameters** (automatable): *Freeze* holds the picture still, *Gain*
-  (±24 dB) changes the level the analyzer sees. Audio always passes through
-  untouched.
+  (±24 dB) changes the level the analyzer sees (in P31 Meter it shifts every
+  reading). Audio always passes through untouched.
 - **Readout**: in P31 Spectrum, hover over the spectrum for the frequency, the
   nearest note with its offset in cents, and the level. In P31 Spectrogram,
   click and hold for the frequency and nearest note; drag to scrub.
@@ -113,8 +134,8 @@ a box per format, so you can install, say, only P31 Spectrum as VST3 and CLAP:
 | Audio Unit | `/Library/Audio/Plug-Ins/Components` |
 | Standalone apps | `/Applications` |
 
-To uninstall, delete `P31 Spectrum.*`, `P31 Scope.*`, `P31 Spectrogram.*` and
-`P31 Suite.*` from those folders, then
+To uninstall, delete `P31 Spectrum.*`, `P31 Scope.*`, `P31 Spectrogram.*`,
+`P31 Meter.*` and `P31 Suite.*` from those folders, then
 `pkgutil --pkgs | grep com.scannou.p31 | xargs -n1 sudo pkgutil --forget`.
 
 ## Requirements
@@ -137,7 +158,7 @@ Bundles land in `<build>/plugins/`. With `P31_COPY_AFTER_BUILD=ON` (default for
 `dev`) they are also copied to `~/Library/Audio/Plug-Ins/{CLAP,VST3,Components}`.
 
 In CLion: open the folder, enable the `dev` CMake preset, build `p31-spectrum_all`,
-`p31-scope_all`, `p31-spectrogram_all` or `p31-suite_all`.
+`p31-scope_all`, `p31-spectrogram_all`, `p31-meter_all` or `p31-suite_all`.
 
 ## Test
 
@@ -170,9 +191,10 @@ page.
 | `P31_DRAG=dx,dy` | drag the resize grip, with the host resizing like a DAW |
 | `P31_ABOUT=1` | save the About dialog instead of the editor |
 | `P31_HOLD=1` | stop the audio a second before the capture, as a stopped DAW does |
+| `P31_CLICK=x,y` | click the editor at that fraction (0,0 is top left) just before the capture: resets P31 Meter's bars or figures |
 | `P31_DUMP_STATE=1` | print the saved state at the end |
 
-For P31 Suite, where a panel is `Spectrum`, `Scope` or `Spectrogram`:
+For P31 Suite, where a panel is `Spectrum`, `Scope`, `Spectrogram` or `Meter`:
 
 | Variable | Effect |
 |---|---|
@@ -248,7 +270,8 @@ plugins/common/  shared CLAP shell (ports, state, pass-through, editor hosting)
 plugins/spectrum/
 plugins/scope/
 plugins/spectrogram/
-plugins/suite/   the three editors as panels of one window
+plugins/meter/
+plugins/suite/   the other plugins' editors as panels of one window
 dev/             developer tools (p31-snapshot)
 cmake/ scripts/  build helpers; bootstrap, validate, package, notices, icons
 patches/         fixes to submodules, applied by scripts/bootstrap.sh (see patches/README.md)
