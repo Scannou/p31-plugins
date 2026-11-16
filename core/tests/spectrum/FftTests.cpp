@@ -51,9 +51,9 @@ std::vector<FftBackend> backends() {
 
 TEST_CASE("RealFft accepts only power-of-two sizes in range") {
     CHECK(RealFft::isValidSize(256));
-    CHECK(RealFft::isValidSize(32768));
+    CHECK(RealFft::isValidSize(65536));
     CHECK_FALSE(RealFft::isValidSize(128));
-    CHECK_FALSE(RealFft::isValidSize(65536));
+    CHECK_FALSE(RealFft::isValidSize(131072));
     CHECK_FALSE(RealFft::isValidSize(3000));
     CHECK(RealFft::create(1000) == nullptr);
     REQUIRE(RealFft::create(1024) != nullptr);

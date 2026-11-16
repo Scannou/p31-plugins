@@ -15,7 +15,7 @@
 namespace p31::spectrum {
 
 constexpr size_t kMinFftSize = 256;
-constexpr size_t kMaxFftSize = 32768;
+constexpr size_t kMaxFftSize = 65536;   // the spectrogram's long window at 176.4 kHz and up
 
 enum class FftBackend {
     Default,   // vDSP where available, else pffft

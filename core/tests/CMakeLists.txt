@@ -8,6 +8,10 @@ add_executable(p31-core-tests
     scope/ScopeLayoutTests.cpp
     scope/ScopeSettingsTests.cpp
     scope/StereoAnalysisTests.cpp
+    spectrogram/SpectrogramClockTests.cpp
+    spectrogram/SpectrogramColormapsTests.cpp
+    spectrogram/SpectrogramEngineTests.cpp
+    spectrogram/SpectrogramSettingsTests.cpp
     spectrum/BandMapTests.cpp
     spectrum/FftTests.cpp
     spectrum/SpectrumAnalyzerTests.cpp

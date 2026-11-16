@@ -18,6 +18,7 @@ add_library(p31-core STATIC
     src/StateCodec.cpp
     src/scope/PhosphorBuffer.cpp
     src/scope/StereoAnalysis.cpp
+    src/spectrogram/SpectrogramEngine.cpp
     src/spectrum/BandMap.cpp
     src/spectrum/Fft.cpp
     src/spectrum/SpectrumAnalyzer.cpp
