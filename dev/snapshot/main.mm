@@ -19,7 +19,10 @@
 //  bottom left), for hover readouts (held down on the spectrogram).
 //  P31_HOLD=1 stops the audio shortly before the capture, as a stopped DAW
 //  does (a spectrogram then rests on whole pixels).
-//  For P31 Suite, where a panel is named Spectrum, Scope or Spectrogram:
+//  P31_CLICK=x,y clicks the editor at that fraction of its width and height
+//  (0,0 is top left) just before the capture, after P31_HOLD's stop: on P31
+//  Meter's bars or figures it resets them.
+//  For P31 Suite, where a panel is named Spectrum, Scope, Spectrogram or Meter:
 //  P31_TOOLBAR=1 shows every panel's toolbar, as with the mouse over it.
 //  P31_DIVIDER=n,dx,dy drags the n-th divider by that many points.
 //  P31_MOVE=panel,x,y drags the panel by its handle to that fraction of the
@@ -529,6 +532,18 @@ int main(int argc, const char* argv[]) {
             running.store(false);
             audio.join();
             [[NSRunLoop mainRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:1.0]];
+        }
+        if (const char* click = std::getenv("P31_CLICK")) {
+            double fx = 0, fy = 0;
+            if (std::sscanf(click, "%lf,%lf", &fx, &fy) != 2) { std::fprintf(stderr, "click failed\n"); return 1; }
+            const NSRect content = window.contentView.bounds;
+            const NSPoint at = NSMakePoint(content.size.width * fx, content.size.height * (1.0 - fy));
+            // The view a real click would reach.
+            NSView* target = [window.contentView hitTest:at];
+            if (!target) { std::fprintf(stderr, "nothing to click\n"); return 1; }
+            [target mouseDown:mouseEvent(window, NSEventTypeLeftMouseDown, at)];
+            [target mouseUp:mouseEvent(window, NSEventTypeLeftMouseUp, at)];
+            [[NSRunLoop mainRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:kSettle]];
         }
         if (hoverTarget) {
             if (hoverPress) [hoverTarget mouseDown:hoverMove];
