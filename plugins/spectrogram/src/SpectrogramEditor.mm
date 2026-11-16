@@ -401,6 +401,7 @@ Form SpectrogramEditor::buildForm() {
                        "Rows above half the sample rate stay empty"));
 
     f.push_back(section("Input"));
+    f.push_back(p31::editor::inputSourceRow(_plugin));
     f.push_back(p31::editor::inputGainRow(_plugin));
     f.push_back(p31::editor::freezeRow(_plugin));
 

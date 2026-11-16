@@ -408,6 +408,7 @@ Form SpectrumEditor::buildForm() {
     }
 
     f.push_back(section("Input"));
+    f.push_back(p31::editor::inputSourceRow(_plugin));
     f.push_back(p31::editor::inputGainRow(_plugin));
     f.push_back(p31::editor::freezeRow(_plugin));
 

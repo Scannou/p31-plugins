@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- clap-wrapper's standalone Info.plist (src/detail/standalone/macos), with our bundle
-     identifier, copyright and microphone text. -->
+     identifier, copyright, and microphone and system audio texts. -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -8,6 +8,8 @@
     <true/>
     <key>NSMicrophoneUsageDescription</key>
     <string>${MACOSX_BUNDLE_BUNDLE_NAME} shows the audio of the input device you choose.</string>
+    <key>NSAudioCaptureUsageDescription</key>
+    <string>${MACOSX_BUNDLE_BUNDLE_NAME} shows the audio this Mac is playing.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleExecutable</key>

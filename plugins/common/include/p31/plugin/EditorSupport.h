@@ -59,6 +59,17 @@ inline ui::Row freezeRow(PluginBase& plugin) {
     return r;
 }
 
+// Standalone apps only: where the audio comes from.
+inline ui::Row inputSourceRow(PluginBase& plugin) {
+    PluginBase* p = &plugin;
+    ui::Row r = ui::popup(
+        "Source", {{"System audio", PluginBase::SourceSystemAudio}, {"Input device", PluginBase::SourceInput}},
+        [p] { return p->inputSource(); }, [p](int v) { p->setInputSource(v); },
+        "System audio: everything this Mac plays. Input device: the input chosen in Audio/MIDI Settings.");
+    r.visible = [p] { return p->systemAudioAvailable(); };
+    return r;
+}
+
 inline ui::Row appearanceRow(int& appearance) {
     int* a = &appearance;
     return ui::popup(

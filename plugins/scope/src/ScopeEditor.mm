@@ -338,6 +338,7 @@ Form ScopeEditor::buildForm() {
                [p](int v) { p->highHz = v; }, "Split for the band meters and the band-colored trace"));
 
     f.push_back(section("Input"));
+    f.push_back(p31::editor::inputSourceRow(_plugin));
     f.push_back(p31::editor::inputGainRow(_plugin));
     f.push_back(p31::editor::freezeRow(_plugin));
 

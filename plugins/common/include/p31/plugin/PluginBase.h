@@ -8,10 +8,14 @@
 //  the settings, and a resizable editor. Subclasses add analysis, their
 //  settings and the editor's contents.
 //
+//  In the standalone apps the analysis can take what the Mac is playing
+//  (SystemAudio.h) instead of the input device the app opened.
+//
 
 #pragma once
 
 #include "p31/plugin/Editor.h"
+#include "p31/plugin/SystemAudio.h"
 
 #include <clap/clap.h>
 
@@ -55,6 +59,22 @@ public:
     void setParamFromEditor(clap_id id, double value);
     void endParamEdit(clap_id id);
 
+    // --- Source (standalone apps) ---
+
+    // What analyze() receives.
+    enum InputSource {
+        SourceInput = 0,         // the plugin's audio input (in the apps: an input device)
+        SourceSystemAudio = 1,   // everything this Mac plays
+    };
+
+    // The standalone app hosts the plugin, on a macOS that can record
+    // system audio.
+    bool systemAudioAvailable() const { return _standalone && SystemAudioCapture::available(); }
+    // Any thread.
+    int inputSource() const { return _source.load(std::memory_order_relaxed); }
+    // Main thread. Stays on the input when system audio cannot be started.
+    void setInputSource(int source);
+
     // --- Settings ---
 
     // Main thread. The current settings as text (StateCodec), for presets.
@@ -73,8 +93,10 @@ protected:
     virtual std::string encodeSettings() const { return {}; }
     virtual void decodeSettings(std::string_view text) { (void)text; }
 
-    // Audio thread. Called once per block with the input channels, before
-    // the audio is passed through. Must not allocate, lock or log.
+    // Audio thread, or Core Audio's IO thread while the source is system
+    // audio; never both at once. Called once per block with the input
+    // channels, before the audio is passed through. Must not allocate, lock
+    // or log.
     virtual void analyze(const float* const* channels, uint32_t channelCount, uint32_t frames) {
         (void)channels; (void)channelCount; (void)frames;
     }
@@ -97,9 +119,13 @@ protected:
     virtual EditorSizeLimits editorSizeLimits() const { return {}; }
 
     const clap_host* host() const { return _host; }
-    // Sample rate of the current (or last) activation; 0 before the first.
-    // Safe from any thread.
-    double sampleRate() const { return _sampleRate.load(std::memory_order_relaxed); }
+    // Sample rate of the audio analyze() receives: the system audio's while
+    // that is the source, else the current (or last) activation's; 0 before
+    // the first. Safe from any thread.
+    double sampleRate() const {
+        const double system = _systemRate.load(std::memory_order_relaxed);
+        return system > 0 ? system : _sampleRate.load(std::memory_order_relaxed);
+    }
 
 private:
     // clap_plugin
@@ -133,6 +159,11 @@ private:
     bool guiSetSize(uint32_t width, uint32_t height);
     void guiClampSize(uint32_t& width, uint32_t& height) const;
 
+    // source
+    void updateSystemAudio();
+    static void systemAudioSink(void* context, const float* const* channels, uint32_t channelCount, uint32_t frames,
+                                double sampleRate);
+
     static PluginBase* self(const clap_plugin* plugin);
 
     clap_plugin _plugin{};
@@ -141,9 +172,19 @@ private:
     uint32_t _inChannels = 2;
     uint32_t _outChannels = 2;
     std::atomic<double> _sampleRate{0.0};
-    // clap-wrapper's standalone app plays the output on the speakers while
-    // recording the input: passing audio through would feed back.
-    bool _muteOutput = false;
+    // clap-wrapper's standalone app hosts the plugin. It plays the output on
+    // the speakers while recording the input: passing audio through would
+    // feed back, so the output is muted there.
+    bool _standalone = false;
+
+    // analyze() has one caller at a time. The source says whose turn it is;
+    // each side announces itself before checking it and yields a block when
+    // the other is still inside (while the source changes).
+    std::atomic<int> _source{SourceInput};
+    std::atomic<bool> _hostAnalysing{false};
+    std::atomic<bool> _systemAnalysing{false};
+    std::atomic<double> _systemRate{0.0};   // 0 unless system audio is arriving
+    std::unique_ptr<SystemAudioCapture> _systemAudio;
 
     // Parameter values, and edits from the editor waiting to be reported to
     // the host from process() or flush(): kEditBegin / kEditValue / kEditEnd.

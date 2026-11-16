@@ -39,6 +39,7 @@ namespace {
     constexpr const char* kKeyEditorHeight = "editor_height";
     constexpr const char* kKeyFreeze = "param.freeze";
     constexpr const char* kKeyGainCentiDb = "param.gain_cdb";
+    constexpr const char* kKeySource = "standalone.source";
 
     // Editor gestures waiting for process() / flush().
     constexpr uint32_t kEditBegin = 1;
@@ -114,7 +115,11 @@ PluginBase* PluginBase::self(const clap_plugin* plugin) {
 }
 
 bool PluginBase::init() {
-    _muteOutput = _host->name != nullptr && std::strcmp(_host->name, kStandaloneHostName) == 0;
+    _standalone = _host->name != nullptr && std::strcmp(_host->name, kStandaloneHostName) == 0;
+    // The apps show what the Mac is playing unless told otherwise. The
+    // stream starts with the first activation or editor, after any saved
+    // choice has been loaded.
+    if (systemAudioAvailable()) _source.store(SourceSystemAudio);
     _hostParams = static_cast<const clap_host_params*>(_host->get_extension(_host, CLAP_EXT_PARAMS));
     _hostState = static_cast<const clap_host_state*>(_host->get_extension(_host, CLAP_EXT_STATE));
     _hostGui = static_cast<const clap_host_gui*>(_host->get_extension(_host, CLAP_EXT_GUI));
@@ -124,12 +129,17 @@ bool PluginBase::init() {
     return true;
 }
 
-void PluginBase::destroy() { delete this; }
+void PluginBase::destroy() {
+    // First, while the subclass analyze() writes to is still whole.
+    _systemAudio.reset();
+    delete this;
+}
 
 bool PluginBase::activate(double sampleRate, uint32_t minFrames, uint32_t maxFrames) {
     if (!onActivate(sampleRate, minFrames, maxFrames)) return false;
     _sampleRate.store(sampleRate, std::memory_order_relaxed);
     _active = true;
+    updateSystemAudio();
     return true;
 }
 
@@ -153,9 +163,13 @@ clap_process_status PluginBase::process(const clap_process* proc) {
     const uint32_t inCount = (in && inData) ? in->channel_count : 0;
     // Before the pass-through: with in-place buffers a muted output would
     // otherwise silence the input too.
-    if (inCount > 0) analyze(inData, inCount, frames);
+    if (inCount > 0) {
+        _hostAnalysing.store(true);
+        if (_source.load() == SourceInput && !_systemAnalysing.load()) analyze(inData, inCount, frames);
+        _hostAnalysing.store(false);
+    }
 
-    if (_muteOutput) {
+    if (_standalone) {
         out.constant_mask = passThrough(nullptr, 0, out.data32, out.channel_count, frames, 0);
     } else {
         out.constant_mask = passThrough(inData, inCount, out.data32, out.channel_count, frames,
@@ -172,6 +186,41 @@ const void* PluginBase::getExtension(const char* id) {
     if (std::strcmp(id, CLAP_EXT_STATE) == 0) return &s_state;
     if (std::strcmp(id, CLAP_EXT_GUI) == 0 && hasEditor()) return &s_gui;
     return extension(id);
+}
+
+#pragma mark - source
+
+// Core Audio's IO thread.
+void PluginBase::systemAudioSink(void* context, const float* const* channels, uint32_t channelCount, uint32_t frames,
+                                 double sampleRate) {
+    auto* s = static_cast<PluginBase*>(context);
+    s->_systemAnalysing.store(true);
+    if (s->_source.load() == SourceSystemAudio && !s->_hostAnalysing.load()) {
+        s->_systemRate.store(sampleRate, std::memory_order_relaxed);
+        s->analyze(channels, channelCount, frames);
+    }
+    s->_systemAnalysing.store(false);
+}
+
+void PluginBase::setInputSource(int source) {
+    const int wanted = source == SourceSystemAudio && systemAudioAvailable() ? SourceSystemAudio : SourceInput;
+    if (wanted == inputSource()) return;
+    _source.store(wanted);
+    updateSystemAudio();
+    settingsEdited();
+}
+
+// Start or stop the system audio stream to match the source.
+void PluginBase::updateSystemAudio() {
+    if (inputSource() == SourceSystemAudio) {
+        if (!_systemAudio) _systemAudio = std::make_unique<SystemAudioCapture>(&PluginBase::systemAudioSink, this);
+        // Without the stream the app would show nothing: fall back to the input.
+        if (!_systemAudio->start()) _source.store(SourceInput);
+    }
+    if (inputSource() != SourceSystemAudio && _systemAudio) {
+        _systemAudio->stop();
+        _systemRate.store(0.0, std::memory_order_relaxed);
+    }
 }
 
 #pragma mark - audio ports
@@ -384,6 +433,7 @@ bool PluginBase::saveState(const clap_ostream* stream) {
     }
     w.put(kKeyFreeze, frozen() ? 1 : 0);
     w.put(kKeyGainCentiDb, std::lround(paramValue(kParamGain) * 100.0));
+    if (_standalone) w.put(kKeySource, inputSource());
     const std::string payload = w.text() + encodeSettings();
     if (payload.size() > kMaxStatePayload) return false;
 
@@ -427,6 +477,8 @@ bool PluginBase::loadState(const clap_istream* stream) {
         if (resize && _hostGui && _hostGui->request_resize(_host, width, height)) _editor->setSize(width, height);
     }
 
+    if (r.get(kKeySource, v)) setInputSource(static_cast<int>(v));
+
     decodeSettings(text);
     if (_editor) _editor->settingsChanged();
     return true;
@@ -447,6 +499,8 @@ bool PluginBase::guiCreate(const char* api, bool isFloating) {
         _editorHeight = limits.defaultHeight;
     }
     _editor = createEditor(_editorWidth, _editorHeight);
+    // The app may show its editor before (or without) starting an audio device.
+    updateSystemAudio();
     return _editor != nullptr;
 }
 
