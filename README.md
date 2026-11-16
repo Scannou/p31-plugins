@@ -6,7 +6,8 @@
 # p31-plugins
 
 A spectrum analyzer, a vectorscope and a spectrogram for macOS, as CLAP, VST3
-and Audio Unit plugins and standalone apps. Ported from the foobar2000 components in
+and Audio Unit plugins and standalone apps, plus P31 Suite, which shows all
+three in one window. Ported from the foobar2000 components in
 [fb2k-components-mac-suite](https://github.com/JendaT/fb2k-components-mac-suite).
 Audio passes through untouched, with zero latency.
 
@@ -50,6 +51,22 @@ signed yet, and each release's notes explain how to open one.
   horizontal one lining up with P31 Spectrum
 - Nine colormaps, a ramp per P31 Spectrum theme, or four colours of your own
 
+## P31 Suite
+
+![P31 Suite, the three panels on a test signal](assets/screenshots/p31-suite.png)
+
+- The spectrum, the scope and the spectrogram as panels of one window, on the
+  same audio; each panel is the plugin of that name, with its own settings
+  and presets
+- Drag the line between two panels to resize them
+- Hover over a panel and drag its move handle (the arrows, top right) to put
+  the panel somewhere else: on a side of another panel, in the middle of one
+  to trade places, or along an edge of the window. The place lights up before
+  you drop
+- The × beside the handle hides a panel; right-click → Panels brings it back.
+  A hidden panel does no work
+- Freeze, Gain and the standalone app's Source are shared by all panels
+
 ## Using the plugins
 
 - **Settings**: hover over the editor and click the sliders icon (top right), or
@@ -71,6 +88,12 @@ signed yet, and each release's notes explain how to open one.
 - **Appearance**: follow the system, or fixed light or dark per instance.
 - **Size**: drag the grip in the bottom-right corner. The size is saved with
   the project.
+- **P31 Suite**: the arrangement of the panels is saved with the project, with
+  every panel's settings. Right-click → Panels has "Reset Layout" and "Use
+  Current Layout for New Instances". A panel's presets are those of its own
+  plugin (a preset saved in P31 Spectrum shows up in the suite's spectrum
+  panel and the other way round), and a new suite starts each panel from that
+  plugin's settings for new instances.
 - **Standalone apps**: they show everything the Mac is playing (macOS 14.2 or
   later; macOS asks once for permission to record system audio). Settings →
   Input → Source switches to an input device instead, the one chosen under
@@ -90,8 +113,8 @@ a box per format, so you can install, say, only P31 Spectrum as VST3 and CLAP:
 | Audio Unit | `/Library/Audio/Plug-Ins/Components` |
 | Standalone apps | `/Applications` |
 
-To uninstall, delete `P31 Spectrum.*`, `P31 Scope.*` and `P31 Spectrogram.*`
-from those folders, then
+To uninstall, delete `P31 Spectrum.*`, `P31 Scope.*`, `P31 Spectrogram.*` and
+`P31 Suite.*` from those folders, then
 `pkgutil --pkgs | grep com.scannou.p31 | xargs -n1 sudo pkgutil --forget`.
 
 ## Requirements
@@ -114,7 +137,7 @@ Bundles land in `<build>/plugins/`. With `P31_COPY_AFTER_BUILD=ON` (default for
 `dev`) they are also copied to `~/Library/Audio/Plug-Ins/{CLAP,VST3,Components}`.
 
 In CLion: open the folder, enable the `dev` CMake preset, build `p31-spectrum_all`,
-`p31-scope_all` or `p31-spectrogram_all`.
+`p31-scope_all`, `p31-spectrogram_all` or `p31-suite_all`.
 
 ## Test
 
@@ -148,6 +171,17 @@ page.
 | `P31_ABOUT=1` | save the About dialog instead of the editor |
 | `P31_HOLD=1` | stop the audio a second before the capture, as a stopped DAW does |
 | `P31_DUMP_STATE=1` | print the saved state at the end |
+
+For P31 Suite, where a panel is `Spectrum`, `Scope` or `Spectrogram`:
+
+| Variable | Effect |
+|---|---|
+| `P31_TOOLBAR=1` | show every panel's toolbar, as with the mouse over it |
+| `P31_DIVIDER=n,dx,dy` | drag the n-th line between panels by that many points |
+| `P31_MOVE=<panel>,x,y` | drag the panel by its handle to that fraction of the editor (0,0 is top left) and drop it |
+| `P31_MOVE_HOLD=1` | with `P31_MOVE`: capture before the drop, with the place lit up |
+| `P31_HIDE=<panel>` | click the panel's hide button |
+| `P31_PANELS=<item>` | pick that item in right-click → Panels |
 
 ## Validate
 
@@ -214,6 +248,7 @@ plugins/common/  shared CLAP shell (ports, state, pass-through, editor hosting)
 plugins/spectrum/
 plugins/scope/
 plugins/spectrogram/
+plugins/suite/   the three editors as panels of one window
 dev/             developer tools (p31-snapshot)
 cmake/ scripts/  build helpers; bootstrap, validate, package, notices, icons
 patches/         fixes to submodules, applied by scripts/bootstrap.sh (see patches/README.md)
