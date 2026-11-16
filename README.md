@@ -26,6 +26,9 @@ signed yet, and each release's notes explain how to open one.
   vDSP with a pffft fallback
 - Log, compact-bass log or linear frequency axis; adjustable slope (1 dB/oct
   by default), range and smoothing (RMS or attack / decay)
+- Auto gain: the top of the display follows the loudest recent level, so
+  quiet material fills it too; the dB scale moves with it and keeps showing
+  true levels
 - Mid + side display; vertical layout
 
 ## P31 Scope
@@ -47,6 +50,8 @@ signed yet, and each release's notes explain how to open one.
   kicks stay narrow in time; multi-resolution and standard modes
 - Levels in dBFS with adjustable top level, range and slope; mid, left, right
   or side channel
+- Auto gain: the top level follows the loudest recent level, so quiet
+  material uses the whole colour range; the dB scale moves with it
 - Logarithmic, mel or linear frequency axis; vertical or horizontal, the
   horizontal one lining up with P31 Spectrum
 - Nine colormaps, a ramp per P31 Spectrum theme, or four colours of your own
