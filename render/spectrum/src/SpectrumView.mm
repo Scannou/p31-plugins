@@ -7,6 +7,7 @@
 
 #import "p31/render/ThemeColor.h"
 
+#include <p31/core/AutoTop.h>
 #include <p31/spectrum/BandMap.h>
 
 #include <algorithm>
@@ -44,8 +45,9 @@ using namespace p31::spectrum;
     bool     _peakHold;
     bool     _shadowFill;
     bool     _showDbGuides;
-    int      _topDb;       // level at the top of the plot
+    double   _topDb;       // level at the top of the plot
     int      _rangeDb;     // dB from the top of the plot to the bottom
+    bool     _autoTop;     // auto gain moves _topDb
     bool     _showFreqAxis;
     bool     _showLegend;  // Live / Peak hold key in Curve mode
     int      _gridOpacity;
@@ -102,6 +104,7 @@ using namespace p31::spectrum;
     _showDbGuides  = s.showDbGuides;
     _topDb         = s.topDb;
     _rangeDb       = s.rangeDb;
+    _autoTop       = s.autoGain;
     _showFreqAxis  = s.showFreqAxis;
     _showLegend    = s.showLegend;
     _gridOpacity   = s.gridOpacity;
@@ -128,6 +131,12 @@ using namespace p31::spectrum;
     _sampleRate = rate;
     [self updateFrequencyRange];
     _barLabels = nil;
+    [self setNeedsDisplay:YES];
+}
+
+- (void)setTopDb:(double)topDb {
+    if (topDb == _topDb) return;
+    _topDb = topDb;
     [self setNeedsDisplay:YES];
 }
 
@@ -357,12 +366,16 @@ static const CGFloat kPeakLineAlpha = 0.45;
 // The dB guides, top line first: (level, label). Numbers only, as on studio
 // analyzers; the topmost line names the unit.
 - (std::vector<std::pair<int, NSString *>>)dbGuides {
+    return [self dbGuidesForTop:_topDb];
+}
+
+- (std::vector<std::pair<int, NSString *>>)dbGuidesForTop:(double)top {
     std::vector<std::pair<int, NSString *>> guides;
     const int range = _rangeDb;
     if (range <= 0) return guides;
-    const int floorDb = _topDb - range;
+    const double floorDb = top - range;
     const int step = range > 90 ? 20 : 10;
-    const int startDb = static_cast<int>(std::floor(static_cast<double>(_topDb) / step) * step);   // at or below Top
+    const int startDb = static_cast<int>(std::floor(top / step) * step);   // at or below Top
     for (int db = startDb; db > floorDb; db -= step) {
         guides.emplace_back(db, db == startDb ? [NSString stringWithFormat:@"%d dB", db]
                                               : [NSString stringWithFormat:@"%d", db]);
@@ -371,10 +384,17 @@ static const CGFloat kPeakLineAlpha = 0.45;
 }
 
 // Wide enough for every label beside the horizontal plot, the unit included.
+// With auto gain also for the lowest top it can reach (the longest numbers),
+// so the plot does not change width as the top moves.
 - (CGFloat)dbColumnWidth {
     NSDictionary *attrs = textAttrs(dbLabelFont(), nil);
     CGFloat widest = 0;
     for (const auto &g : [self dbGuides]) widest = std::max(widest, [g.second sizeWithAttributes:attrs].width);
+    if (_autoTop) {
+        for (const auto &g : [self dbGuidesForTop:p31::AutoTop::Settings{}.minTopDb]) {
+            widest = std::max(widest, [g.second sizeWithAttributes:attrs].width);
+        }
+    }
     return std::max(kDbThick, std::ceil(kDbLabelGap + widest + 2.0));
 }
 
@@ -782,8 +802,8 @@ static CGFloat colorBarStrength(CGFloat level) {
 
 // dB guides: lines of constant magnitude across the frequency axis.
 - (void)drawDbGuidesInContext:(CGContextRef)ctx {
-    const float range = _rangeDb;
-    const float floorDb = _topDb - range;
+    const double range = _rangeDb;
+    const double floorDb = _topDb - range;
     if (range <= 0) return;
 
     NSDictionary *attrs = textAttrs(dbLabelFont(), [self gridLabelColor]);
@@ -1134,7 +1154,7 @@ static NSString *noteName(double f) {
         initWithString:[readoutHz(hz) stringByAppendingString:@"   "] attributes:inkAttrs];
     [text appendAttributedString:[[NSAttributedString alloc]
         initWithString:[noteName(hz) stringByAppendingString:@"   "] attributes:noteAttrs]];
-    NSString *level = m <= 0.0 ? [NSString stringWithFormat:@"< %.0f dB", (double)(_topDb - _rangeDb)]
+    NSString *level = m <= 0.0 ? [NSString stringWithFormat:@"< %.0f dB", _topDb - _rangeDb]
                                : [NSString stringWithFormat:@"%.1f dB", db];
     [text appendAttributedString:[[NSAttributedString alloc] initWithString:level attributes:inkAttrs]];
 

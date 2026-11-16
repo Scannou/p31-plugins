@@ -14,6 +14,7 @@
 #import <p31/render/SpectrumView.h>
 
 #include <p31/core/AudioRing.h>
+#include <p31/core/AutoTop.h>
 #include <p31/plugin/EditorSupport.h>
 #include <p31/spectrum/SpectrumAnalyzer.h>
 
@@ -150,8 +151,22 @@ private:
         [_root setBrandLightColor:_settings.light.bar darkColor:_settings.dark.bar];
         [_root setAppearanceMode:_settings.appearance];
         [_view applySettings:_settings];
-        _analyzer.configure(analyzerSettings(_settings, static_cast<int>([_view autoBarCount])));
+        // Auto gain starts from the Top setting when it is switched on.
+        if (_settings.autoGain) {
+            _autoTop.configure(p31::AutoTop::Settings::forDisplay(static_cast<float>(_settings.rangeDb)));
+            if (!_autoTopOn) _autoTop.reset(static_cast<float>(_settings.topDb));
+            [_view setTopDb:_autoTop.topDb()];
+        }
+        _autoTopOn = _settings.autoGain;
+        _analyzer.configure(currentAnalyzerSettings(static_cast<int>([_view autoBarCount])));
         pushToView();
+    }
+
+    // The analyzer's settings, with the top auto gain has moved to.
+    SpectrumAnalyzer::Settings currentAnalyzerSettings(int barCount) const {
+        SpectrumAnalyzer::Settings a = analyzerSettings(_settings, barCount);
+        if (_autoTopOn) a.topDb = _autoTop.topDb();
+        return a;
     }
 
     // A control on the settings page changed _settings.
@@ -182,7 +197,7 @@ private:
     void syncBarCount() {
         if (!_settings.viewSizedBars()) return;
         const int count = static_cast<int>([_view autoBarCount]);
-        if (count != _analyzer.settings().barCount) _analyzer.configure(analyzerSettings(_settings, count));
+        if (count != _analyzer.settings().barCount) _analyzer.configure(currentAnalyzerSettings(count));
     }
 
     void tick(double now) {
@@ -217,6 +232,12 @@ private:
                 for (size_t i = 0; i < frames * 2; ++i) _lr[i] *= gain;
             }
             _analyzer.process(_lr.data(), frames);
+            // Before the tick reads the spectrum, so a louder one already fits.
+            if (_autoTopOn && frames > 0) {
+                const float top = _autoTop.process(_analyzer.loudestDb(), dt);
+                _analyzer.setTopDb(top);
+                [_view setTopDb:top];
+            }
         }
         syncBarCount();
 
@@ -242,6 +263,8 @@ private:
     SpectrumSettings _settings;   // what the settings page edits
     SpectrumAnalyzer _analyzer;
     p31::editor::ParamWatch _params;
+    p31::AutoTop _autoTop;        // the top while auto gain is on
+    bool _autoTopOn = false;
     std::vector<float> _lr;       // interleaved L/R read this frame
     double _lastTick = 0.0;
     bool _wasActive = false;
@@ -310,9 +333,16 @@ Form SpectrumEditor::buildForm() {
     }
     f.push_back(popup("Orientation", {{"Horizontal", OrientationHorizontal}, {"Vertical", OrientationVertical}},
                       [p] { return p->orientation; }, [p](int v) { p->orientation = v; }));
-    f.push_back(slider("Top", kMinTopDb, kMaxTopDb, [p] { return p->topDb; },
+    f.push_back(checkbox("Auto gain", [p] { return p->autoGain; }, [p](bool v) { p->autoGain = v; },
+                         "The top of the display follows the loudest recent level, so quiet and loud material both "
+                         "fill it. The dB scale moves with it and keeps showing true levels."));
+    {
+        Row r = slider("Top", kMinTopDb, kMaxTopDb, [p] { return p->topDb; },
                        [p](double v) { p->topDb = static_cast<int>(v); }, [](double v) { return fmt("%.0f dB", v); },
-                       "Level at the top of the display; lower it to fill the height with quiet material"));
+                       "Level at the top of the display; lower it to fill the height with quiet material");
+        r.enabled = [p] { return !p->autoGain; };
+        f.push_back(r);
+    }
     {
         std::vector<std::pair<std::string, int>> ranges;
         for (int r : kRangeDbChoices) ranges.emplace_back(std::to_string(r) + " dB", r);

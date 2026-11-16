@@ -40,6 +40,11 @@ NS_ASSUME_NONNULL_BEGIN
 // Call every frame, also when no column was added, for even motion.
 - (void)flushWithPhase:(CGFloat)phase;
 
+// Level of the brightest color while auto gain moves it (the settings' Top
+// level otherwise): for the dB scale. Columns already drawn keep their
+// colors.
+- (void)setTopDb:(double)topDb;
+
 // Drop everything drawn so far.
 - (void)clear;
 
