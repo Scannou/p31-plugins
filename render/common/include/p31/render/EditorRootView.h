@@ -17,6 +17,17 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+namespace p31::ui {
+constexpr CGFloat kResizeGripSize = 16.0;
+}
+
+// Bottom-right corner handle of an editor. Hosts like Live leave resizing to
+// the plugin: dragging this asks for a new size of the grip's superview, the
+// way plugins with their own resize corner do.
+@interface P31ResizeGrip : NSView
+@property (nonatomic, copy, nullable) BOOL (^onResize)(NSSize size);
+@end
+
 @interface P31EditorRootView : NSView
 
 // `title` is the plugin's name after the brand ("Spectrum").
@@ -41,7 +52,15 @@ NS_ASSUME_NONNULL_BEGIN
 // Presets menu (panel header and right-click menu).
 @property (nonatomic, copy, nullable) NSMenu * (^presetMenu)(void);
 // The grip was dragged: ask the host for this size. Returns NO if refused.
+// Without it there is no grip (a panel of P31 Suite).
 @property (nonatomic, copy, nullable) BOOL (^requestResize)(NSSize size);
+// Extra toolbar controls, left of Freeze, each on a chip like the buttons.
+@property (nonatomic, copy, nullable) NSArray<NSView *> *toolbarAccessories;
+// Adds items to the end of the right-click menu.
+@property (nonatomic, copy, nullable) void (^extendMenu)(NSMenu *menu);
+// The settings panel covers this view instead of the editor: a panel of P31
+// Suite shows its settings over the whole window.
+@property (nonatomic, weak, nullable) NSView *settingsHost;
 // Freeze state and toggle.
 @property (nonatomic, copy, nullable) BOOL (^isFrozen)(void);
 @property (nonatomic, copy, nullable) void (^toggleFreeze)(void);

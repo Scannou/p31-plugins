@@ -35,6 +35,13 @@ target_sources(p31-render-spectrum INTERFACE
 target_include_directories(p31-render-spectrum INTERFACE spectrum/include)
 target_link_libraries(p31-render-spectrum INTERFACE p31-render-common p31-core)
 
+add_library(p31-render-suite INTERFACE)
+target_sources(p31-render-suite INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/suite/src/SuiteView.mm
+)
+target_include_directories(p31-render-suite INTERFACE suite/include)
+target_link_libraries(p31-render-suite INTERFACE p31-render-common p31-core)
+
 add_library(p31-render-spectrogram INTERFACE)
 target_sources(p31-render-spectrogram INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/spectrogram/src/SpectrogramView.mm

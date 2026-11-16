@@ -17,15 +17,8 @@ namespace {
     constexpr CGFloat kButtonSize = 30.0;   // each button a rounded chip
     constexpr CGFloat kButtonGap = 6.0;
     constexpr NSTimeInterval kFade = 0.15;
-    constexpr CGFloat kGripSize = 16.0;
+    constexpr CGFloat kGripSize = p31::ui::kResizeGripSize;
 }
-
-// Bottom-right corner handle. Hosts like Live leave resizing to the plugin:
-// dragging this asks the host for a new size, the way plugins with their
-// own resize corner do.
-@interface P31ResizeGrip : NSView
-@property (nonatomic, copy, nullable) BOOL (^onResize)(NSSize size);
-@end
 
 @implementation P31ResizeGrip {
     NSPoint _start;        // screen location of the mouse down
@@ -86,6 +79,7 @@ namespace {
     NSView *_toolbar;
     NSVisualEffectView *_freezeChip;
     NSVisualEffectView *_settingsChip;
+    NSArray<NSView *> *_accessoryChips;
     NSButton *_freezeButton;
     NSButton *_settingsButton;
     P31ResizeGrip *_grip;
@@ -120,8 +114,9 @@ namespace {
     _toolbar.alphaValue = 0.0;
     _freezeButton = [self toolbarButton:@"snowflake" tip:@"Freeze the display" action:@selector(freezePressed:)];
     _settingsButton = [self toolbarButton:@"slider.horizontal.3" tip:@"Settings" action:@selector(settingsPressed:)];
-    _freezeChip = [self chipWithButton:_freezeButton];
-    _settingsChip = [self chipWithButton:_settingsButton];
+    _freezeChip = [self chipWithControl:_freezeButton];
+    _settingsChip = [self chipWithControl:_settingsButton];
+    _accessoryChips = @[];
     [_toolbar addSubview:_freezeChip];
     [_toolbar addSubview:_settingsChip];
     [self addSubview:_toolbar];
@@ -136,6 +131,7 @@ namespace {
 
     _grip = [[P31ResizeGrip alloc] initWithFrame:NSZeroRect];
     _grip.toolTip = @"Drag to resize";
+    _grip.hidden = YES;
     _grip.onResize = ^BOOL(NSSize size) {
         P31EditorRootView *root = weakSelf;
         return root.requestResize ? root.requestResize(size) : NO;
@@ -154,8 +150,8 @@ namespace {
     return b;
 }
 
-// A rounded, thinly outlined square behind a toolbar button.
-- (NSVisualEffectView *)chipWithButton:(NSButton *)button {
+// A rounded, thinly outlined square behind a toolbar control.
+- (NSVisualEffectView *)chipWithControl:(NSView *)control {
     NSVisualEffectView *chip = [[NSVisualEffectView alloc] initWithFrame:NSMakeRect(0, 0, kButtonSize, kButtonSize)];
     chip.material = NSVisualEffectMaterialHUDWindow;
     chip.blendingMode = NSVisualEffectBlendingModeWithinWindow;
@@ -165,14 +161,32 @@ namespace {
     chip.layer.masksToBounds = YES;
     chip.layer.borderWidth = 1.0;
     chip.layer.borderColor = [NSColor colorWithWhite:1.0 alpha:0.14].CGColor;
-    button.frame = chip.bounds;
-    button.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-    [chip addSubview:button];
+    control.frame = chip.bounds;
+    control.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    [chip addSubview:control];
     return chip;
 }
 
 - (void)setToolbarInsetRight:(CGFloat)inset {
     _toolbarInsetRight = inset;
+    [self setNeedsLayout:YES];
+}
+
+- (void)setRequestResize:(BOOL (^)(NSSize))requestResize {
+    _requestResize = [requestResize copy];
+    _grip.hidden = _requestResize == nil;
+}
+
+- (void)setToolbarAccessories:(NSArray<NSView *> *)accessories {
+    _toolbarAccessories = [accessories copy];
+    for (NSView *chip in _accessoryChips) [chip removeFromSuperview];
+    NSMutableArray<NSView *> *chips = [NSMutableArray array];
+    for (NSView *accessory in _toolbarAccessories) {
+        NSView *chip = [self chipWithControl:accessory];
+        [_toolbar addSubview:chip];
+        [chips addObject:chip];
+    }
+    _accessoryChips = chips;
     [self setNeedsLayout:YES];
 }
 
@@ -191,11 +205,12 @@ namespace {
     [super layout];
     [self snapContentToPixels];
     const NSRect b = self.bounds;
-    const CGFloat w = 2 * kButtonSize + kButtonGap, h = kButtonSize;
+    NSArray<NSView *> *chips = [_accessoryChips arrayByAddingObjectsFromArray:@[_freezeChip, _settingsChip]];
+    const CGFloat step = kButtonSize + kButtonGap;
+    const CGFloat w = chips.count * step - kButtonGap, h = kButtonSize;
     // Top right; this view is not flipped.
     _toolbar.frame = NSMakeRect(NSMaxX(b) - _toolbarInsetRight - w, NSMaxY(b) - kToolbarInset - h, w, h);
-    _freezeChip.frame = NSMakeRect(0.0, 0.0, kButtonSize, kButtonSize);
-    _settingsChip.frame = NSMakeRect(kButtonSize + kButtonGap, 0.0, kButtonSize, kButtonSize);
+    for (NSUInteger i = 0; i < chips.count; ++i) chips[i].frame = NSMakeRect(i * step, 0.0, kButtonSize, kButtonSize);
     _grip.frame = NSMakeRect(NSMaxX(b) - kGripSize, 0.0, kGripSize, kGripSize);
     [self.window invalidateCursorRectsForView:_grip];
 }
@@ -258,8 +273,20 @@ namespace {
 
 - (void)showSettings {
     if (self.makeForm) [_panel setForm:self.makeForm()];
+    NSView *settingsHost = self.settingsHost;
+    NSView *host = settingsHost ? settingsHost : self;
+    if (_panel.superview != host) [host addSubview:_panel];
+    _panel.frame = host.bounds;
+    // On another view the panel no longer inherits this editor's appearance.
+    _panel.appearance = host == self ? nil : self.appearance;
     _panel.hidden = NO;
     [self updateToolbar:NO];
+}
+
+// Removed for good: a panel shown on another view goes too.
+- (void)viewWillMoveToSuperview:(NSView *)newSuperview {
+    [super viewWillMoveToSuperview:newSuperview];
+    if (newSuperview == nil && _panel.superview != self) [_panel removeFromSuperview];
 }
 
 - (void)hideSettings {
@@ -281,6 +308,7 @@ namespace {
         case p31::AppearanceDark: self.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua]; break;
         default: self.appearance = nil; break;
     }
+    if (_panel.superview != self) _panel.appearance = self.appearance;
 }
 
 #pragma mark - Brand
@@ -332,6 +360,7 @@ namespace {
     }
     [menu addItem:[NSMenuItem separatorItem]];
     [menu addItem:[P31MenuItem itemWithTitle:@"Settings…" handler:^{ [weakSelf showSettings]; }]];
+    if (self.extendMenu) self.extendMenu(menu);
 
     [NSMenu popUpContextMenu:menu withEvent:event forView:self];
 }
