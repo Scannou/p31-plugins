@@ -71,6 +71,11 @@ signed yet, and each release's notes explain how to open one.
 - **Appearance**: follow the system, or fixed light or dark per instance.
 - **Size**: drag the grip in the bottom-right corner. The size is saved with
   the project.
+- **Standalone apps**: they show everything the Mac is playing (macOS 14.2 or
+  later; macOS asks once for permission to record system audio). Settings →
+  Input → Source switches to an input device instead, the one chosen under
+  Audio/MIDI Settings in the app's menu. On older macOS the apps show the
+  input device.
 
 ## Install
 
