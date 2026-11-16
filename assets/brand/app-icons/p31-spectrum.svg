@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<title>P31 Spectrum</title>
+<!-- App icon: the P31 mark's ring as a round CRT screen showing what the app shows, in one
+     phosphor colour (#6FB7FF). Tile: 824 x 824 at 100,100, as macOS app icons are laid out.
+     Rendered to an .icns by scripts/icons.sh. -->
+<defs>
+<linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#141C29"/>
+<stop offset="1" stop-color="#090C12"/>
+</linearGradient>
+<radialGradient id="screen" cx="0.5" cy="0.5" r="0.5">
+<stop offset="0" stop-color="#6FB7FF" stop-opacity="0.10"/>
+<stop offset="1" stop-color="#6FB7FF" stop-opacity="0.02"/>
+</radialGradient>
+<filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+<feGaussianBlur stdDeviation="14"/>
+</filter>
+<filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+<feGaussianBlur stdDeviation="2.6"/>
+</filter>
+<clipPath id="inside"><circle cx="50" cy="50" r="45.5"/></clipPath>
+<linearGradient id="fill" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+<stop offset="0" stop-color="#6FB7FF" stop-opacity="0.42"/>
+<stop offset="1" stop-color="#6FB7FF" stop-opacity="0.04"/>
+</linearGradient>
+</defs>
+<rect x="100" y="112" width="824" height="824" rx="185" fill="#000" fill-opacity="0.35" filter="url(#shadow)"/>
+<rect x="100" y="100" width="824" height="824" rx="185" fill="url(#tile)"/>
+<rect x="101.5" y="101.5" width="821" height="821" rx="183.5" fill="none" stroke="#fff" stroke-opacity="0.07" stroke-width="3"/>
+<!-- The mark's 100 x 100 box, scaled to a 640 box in the middle of the tile. -->
+<g transform="translate(192 192) scale(6.4)" fill="none" stroke="#6FB7FF" stroke-linecap="round" stroke-linejoin="round">
+<circle cx="50" cy="50" r="45.5" fill="url(#screen)" stroke="none"/>
+<g stroke-width="0.5" stroke-opacity="0.16"><path d="M4.5,50 H95.5 M50,4.5 V95.5"/></g>
+<g clip-path="url(#inside)">
+<path d="M2.00,71.00 C3.67,69.50 8.67,67.17 12.00,62.00 C15.33,56.83 19.00,45.33 22.00,40.00 C25.00,34.67 27.33,29.50 30.00,30.00 C32.67,30.50 35.33,38.83 38.00,43.00 C40.67,47.17 43.33,54.33 46.00,55.00 C48.67,55.67 51.33,49.67 54.00,47.00 C56.67,44.33 59.33,38.50 62.00,39.00 C64.67,39.50 67.00,46.00 70.00,50.00 C73.00,54.00 76.67,59.67 80.00,63.00 C83.33,66.33 87.00,68.17 90.00,70.00 C93.00,71.83 96.67,73.33 98.00,74.00 L98,100 L2,100 Z" fill="url(#fill)" stroke="none"/>
+<g filter="url(#glow)" stroke-opacity="0.55"><path stroke-width="6.5" d="M2.00,71.00 C3.67,69.50 8.67,67.17 12.00,62.00 C15.33,56.83 19.00,45.33 22.00,40.00 C25.00,34.67 27.33,29.50 30.00,30.00 C32.67,30.50 35.33,38.83 38.00,43.00 C40.67,47.17 43.33,54.33 46.00,55.00 C48.67,55.67 51.33,49.67 54.00,47.00 C56.67,44.33 59.33,38.50 62.00,39.00 C64.67,39.50 67.00,46.00 70.00,50.00 C73.00,54.00 76.67,59.67 80.00,63.00 C83.33,66.33 87.00,68.17 90.00,70.00 C93.00,71.83 96.67,73.33 98.00,74.00"/></g>
+<path stroke-width="4.5" d="M2.00,71.00 C3.67,69.50 8.67,67.17 12.00,62.00 C15.33,56.83 19.00,45.33 22.00,40.00 C25.00,34.67 27.33,29.50 30.00,30.00 C32.67,30.50 35.33,38.83 38.00,43.00 C40.67,47.17 43.33,54.33 46.00,55.00 C48.67,55.67 51.33,49.67 54.00,47.00 C56.67,44.33 59.33,38.50 62.00,39.00 C64.67,39.50 67.00,46.00 70.00,50.00 C73.00,54.00 76.67,59.67 80.00,63.00 C83.33,66.33 87.00,68.17 90.00,70.00 C93.00,71.83 96.67,73.33 98.00,74.00"/>
+</g>
+<circle cx="50" cy="50" r="47" stroke-width="2.5"/>
+</g>
+</svg>

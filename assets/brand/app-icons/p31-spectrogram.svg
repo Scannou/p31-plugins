@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<title>P31 Spectrogram</title>
+<!-- App icon: the P31 mark's ring as a round CRT screen showing what the app shows, in one
+     phosphor colour (#FFB000). Tile: 824 x 824 at 100,100, as macOS app icons are laid out.
+     Rendered to an .icns by scripts/icons.sh. -->
+<defs>
+<linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#231B0D"/>
+<stop offset="1" stop-color="#0F0B05"/>
+</linearGradient>
+<radialGradient id="screen" cx="0.5" cy="0.5" r="0.5">
+<stop offset="0" stop-color="#FFB000" stop-opacity="0.10"/>
+<stop offset="1" stop-color="#FFB000" stop-opacity="0.02"/>
+</radialGradient>
+<filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+<feGaussianBlur stdDeviation="14"/>
+</filter>
+<filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+<feGaussianBlur stdDeviation="2.6"/>
+</filter>
+<clipPath id="inside"><circle cx="50" cy="50" r="45.5"/></clipPath>
+</defs>
+<rect x="100" y="112" width="824" height="824" rx="185" fill="#000" fill-opacity="0.35" filter="url(#shadow)"/>
+<rect x="100" y="100" width="824" height="824" rx="185" fill="url(#tile)"/>
+<rect x="101.5" y="101.5" width="821" height="821" rx="183.5" fill="none" stroke="#fff" stroke-opacity="0.07" stroke-width="3"/>
+<!-- The mark's 100 x 100 box, scaled to a 640 box in the middle of the tile. -->
+<g transform="translate(192 192) scale(6.4)" fill="none" stroke="#FFB000" stroke-linecap="round" stroke-linejoin="round">
+<circle cx="50" cy="50" r="45.5" fill="url(#screen)" stroke="none"/>
+<g stroke-width="0.5" stroke-opacity="0.16"><path d="M4.5,50 H95.5 M50,4.5 V95.5"/></g>
+<g clip-path="url(#inside)" stroke-linecap="butt">
+<g filter="url(#glow)">
+<path stroke-width="7.2" stroke-opacity="0.50" d="M6.00,77.00 H33.00"/>
+<path stroke-width="6.1" stroke-opacity="0.42" d="M6.00,63.07 H33.00"/>
+<path stroke-width="5.5" stroke-opacity="0.33" d="M6.00,54.93 H33.00"/>
+<path stroke-width="5.0" stroke-opacity="0.25" d="M6.00,49.15 H33.00"/>
+<path stroke-width="4.6" stroke-opacity="0.19" d="M6.00,44.66 H33.00"/>
+<path stroke-width="4.300000000000001" stroke-opacity="0.14" d="M6.00,41.00 H33.00"/>
+<path stroke-width="7.2" stroke-opacity="0.50" d="M37.00,69.00 H62.00"/>
+<path stroke-width="6.1" stroke-opacity="0.42" d="M37.00,55.07 H62.00"/>
+<path stroke-width="5.5" stroke-opacity="0.33" d="M37.00,46.93 H62.00"/>
+<path stroke-width="5.0" stroke-opacity="0.25" d="M37.00,41.15 H62.00"/>
+<path stroke-width="4.6" stroke-opacity="0.19" d="M37.00,36.66 H62.00"/>
+<path stroke-width="4.300000000000001" stroke-opacity="0.14" d="M37.00,33.00 H62.00"/>
+<path stroke-width="7.2" stroke-opacity="0.50" d="M66.00,81.00 H95.00"/>
+<path stroke-width="6.1" stroke-opacity="0.42" d="M66.00,67.07 H95.00"/>
+<path stroke-width="5.5" stroke-opacity="0.33" d="M66.00,58.93 H95.00"/>
+<path stroke-width="5.0" stroke-opacity="0.25" d="M66.00,53.15 H95.00"/>
+<path stroke-width="4.6" stroke-opacity="0.19" d="M66.00,48.66 H95.00"/>
+<path stroke-width="4.300000000000001" stroke-opacity="0.14" d="M66.00,45.00 H95.00"/>
+</g>
+<path stroke-width="5.0" stroke-opacity="1.0" d="M6.00,77.00 H33.00"/>
+<path stroke-width="3.9" stroke-opacity="0.85" d="M6.00,63.07 H33.00"/>
+<path stroke-width="3.3" stroke-opacity="0.66" d="M6.00,54.93 H33.00"/>
+<path stroke-width="2.8" stroke-opacity="0.5" d="M6.00,49.15 H33.00"/>
+<path stroke-width="2.4" stroke-opacity="0.38" d="M6.00,44.66 H33.00"/>
+<path stroke-width="2.1" stroke-opacity="0.28" d="M6.00,41.00 H33.00"/>
+<path stroke-width="5.0" stroke-opacity="1.0" d="M37.00,69.00 H62.00"/>
+<path stroke-width="3.9" stroke-opacity="0.85" d="M37.00,55.07 H62.00"/>
+<path stroke-width="3.3" stroke-opacity="0.66" d="M37.00,46.93 H62.00"/>
+<path stroke-width="2.8" stroke-opacity="0.5" d="M37.00,41.15 H62.00"/>
+<path stroke-width="2.4" stroke-opacity="0.38" d="M37.00,36.66 H62.00"/>
+<path stroke-width="2.1" stroke-opacity="0.28" d="M37.00,33.00 H62.00"/>
+<path stroke-width="5.0" stroke-opacity="1.0" d="M66.00,81.00 H95.00"/>
+<path stroke-width="3.9" stroke-opacity="0.85" d="M66.00,67.07 H95.00"/>
+<path stroke-width="3.3" stroke-opacity="0.66" d="M66.00,58.93 H95.00"/>
+<path stroke-width="2.8" stroke-opacity="0.5" d="M66.00,53.15 H95.00"/>
+<path stroke-width="2.4" stroke-opacity="0.38" d="M66.00,48.66 H95.00"/>
+<path stroke-width="2.1" stroke-opacity="0.28" d="M66.00,45.00 H95.00"/>
+</g>
+<circle cx="50" cy="50" r="47" stroke-width="2.5"/>
+</g>
+</svg>

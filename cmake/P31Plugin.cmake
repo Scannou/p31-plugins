@@ -17,6 +17,9 @@ endfunction()
 # p31_add_plugin(NAME <name> ID <clap id> DISPLAY_NAME <name> AU_SUBTYPE <4cc>
 #                ENTRY <entry.cpp> SOURCES <impl sources...> [LINK <libs...>])
 #
+# The standalone app takes its icon from assets/brand/app-icons/<NAME>.icns
+# (scripts/icons.sh renders it from the SVG beside it).
+#
 # Builds <NAME>-impl (static lib holding the whole plugin) and, through
 # clap-wrapper's make_clapfirst_plugins, <NAME>_clap/_vst3/_auv2/_standalone
 # plus the umbrella <NAME>_all target.
@@ -69,9 +72,13 @@ function(p31_add_plugin)
     foreach(format clap vst3 auv2)
         set_target_properties(${P_NAME}_${format} PROPERTIES MACOSX_BUNDLE_COPYRIGHT "${copyright}")
     endforeach()
+    set(icon "${PROJECT_SOURCE_DIR}/assets/brand/app-icons/${P_NAME}.icns")
+    target_sources(${P_NAME}_standalone PRIVATE "${icon}")
+    set_source_files_properties("${icon}" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
     set_target_properties(${P_NAME}_standalone PROPERTIES
         MACOSX_BUNDLE_INFO_PLIST "${PROJECT_SOURCE_DIR}/cmake/Standalone-Info.plist.in"
         MACOSX_BUNDLE_GUI_IDENTIFIER "${P_ID}.standalone"
         MACOSX_BUNDLE_COPYRIGHT "${copyright}"
+        MACOSX_BUNDLE_ICON_FILE "${P_NAME}.icns"
     )
 endfunction()
