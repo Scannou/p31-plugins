@@ -52,6 +52,7 @@ add_subdirectory(plugins/common)
 add_subdirectory(plugins/spectrum)
 add_subdirectory(plugins/scope)
 add_subdirectory(plugins/spectrogram)
+add_subdirectory(plugins/meter)
 add_subdirectory(plugins/suite)
 
 if (P31_BUILD_DEV_TOOLS)

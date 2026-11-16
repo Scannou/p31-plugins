@@ -75,6 +75,10 @@ public:
     // Main thread. Stays on the input when system audio cannot be started.
     void setInputSource(int source);
 
+    // Channels of the audio analyze() last received: 1 for a mono source
+    // (the ring repeats it on both sides), else 2. Safe from any thread.
+    uint32_t analysisChannels() const { return _analysisChannels.load(std::memory_order_relaxed); }
+
     // --- Settings ---
 
     // Main thread: the editor changed a setting.
@@ -186,6 +190,7 @@ private:
     std::atomic<bool> _hostAnalysing{false};
     std::atomic<bool> _systemAnalysing{false};
     std::atomic<double> _systemRate{0.0};   // 0 unless system audio is arriving
+    std::atomic<uint32_t> _analysisChannels{2};
     std::unique_ptr<SystemAudioCapture> _systemAudio;
 
     // Parameter values, and edits from the editor waiting to be reported to

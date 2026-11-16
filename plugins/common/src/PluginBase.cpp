@@ -180,7 +180,10 @@ clap_process_status PluginBase::process(const clap_process* proc) {
     // otherwise silence the input too.
     if (inCount > 0) {
         _hostAnalysing.store(true);
-        if (_source.load() == SourceInput && !_systemAnalysing.load()) analyze(inData, inCount, frames);
+        if (_source.load() == SourceInput && !_systemAnalysing.load()) {
+            _analysisChannels.store(inCount == 1 ? 1 : 2, std::memory_order_relaxed);
+            analyze(inData, inCount, frames);
+        }
         _hostAnalysing.store(false);
     }
 
@@ -219,6 +222,7 @@ void PluginBase::systemAudioSink(void* context, const float* const* channels, ui
     s->_systemAnalysing.store(true);
     if (s->_source.load() == SourceSystemAudio && !s->_hostAnalysing.load()) {
         s->_systemRate.store(sampleRate, std::memory_order_relaxed);
+        s->_analysisChannels.store(channelCount == 1 ? 1 : 2, std::memory_order_relaxed);
         s->analyze(channels, channelCount, frames);
     }
     s->_systemAnalysing.store(false);

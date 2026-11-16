@@ -51,7 +51,8 @@ PLUGIN_ROWS=(
     "spectrum|P31 Spectrum|Real-time spectrum analyzer"
     "scope|P31 Scope|Vectorscope with tri-band phase correlation"
     "spectrogram|P31 Spectrogram|Scrolling spectrogram"
-    "suite|P31 Suite|Spectrum analyzer, vectorscope and spectrogram in one window"
+    "meter|P31 Meter|Peak, RMS and loudness meter with an analog VU look"
+    "suite|P31 Suite|Spectrum analyzer, vectorscope, spectrogram and level meter in one window"
 )
 #   format: id | title | bundle extension | install location | hosts
 FORMAT_ROWS=(
@@ -150,7 +151,8 @@ step "Installer"
     echo "P31 Spectrum: real-time spectrum analyzer."
     echo "P31 Scope: vectorscope with tri-band phase correlation."
     echo "P31 Spectrogram: scrolling spectrogram."
-    echo "P31 Suite: all three in one window, arranged as you like."
+    echo "P31 Meter: peak, RMS and loudness meter with an analog VU look."
+    echo "P31 Suite: all four in one window, arranged as you like."
     echo
     echo "All pass audio through untouched. The next steps let you pick which"
     echo "plugins to install and in which formats: CLAP, VST3, Audio Unit, and"

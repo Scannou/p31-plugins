@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<title>P31 Meter</title>
+<!-- App icon: the P31 mark's ring as a round CRT screen showing what the app shows, in one
+     phosphor colour (#E6EDF2). Tile: 824 x 824 at 100,100, as macOS app icons are laid out.
+     Rendered to an .icns by scripts/icons.sh. -->
+<defs>
+<linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#1C2024"/>
+<stop offset="1" stop-color="#0B0D0F"/>
+</linearGradient>
+<radialGradient id="screen" cx="0.5" cy="0.5" r="0.5">
+<stop offset="0" stop-color="#E6EDF2" stop-opacity="0.10"/>
+<stop offset="1" stop-color="#E6EDF2" stop-opacity="0.02"/>
+</radialGradient>
+<filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+<feGaussianBlur stdDeviation="14"/>
+</filter>
+<filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+<feGaussianBlur stdDeviation="2.6"/>
+</filter>
+<clipPath id="inside"><circle cx="50" cy="50" r="45.5"/></clipPath>
+</defs>
+<rect x="100" y="112" width="824" height="824" rx="185" fill="#000" fill-opacity="0.35" filter="url(#shadow)"/>
+<rect x="100" y="100" width="824" height="824" rx="185" fill="url(#tile)"/>
+<rect x="101.5" y="101.5" width="821" height="821" rx="183.5" fill="none" stroke="#fff" stroke-opacity="0.07" stroke-width="3"/>
+<!-- The mark's 100 x 100 box, scaled to a 640 box in the middle of the tile. -->
+<g transform="translate(192 192) scale(6.4)" fill="none" stroke="#E6EDF2" stroke-linecap="round" stroke-linejoin="round">
+<circle cx="50" cy="50" r="45.5" fill="url(#screen)" stroke="none"/>
+<g stroke-width="0.5" stroke-opacity="0.16"><path d="M4.5,50 H95.5 M50,4.5 V95.5"/></g>
+<g clip-path="url(#inside)">
+<!-- The scale of a VU face, its last stretch (above 0 VU) heavier, and the needle. -->
+<g stroke-linecap="butt">
+<path stroke-width="2.5" stroke-opacity="0.8" d="M16.56,48.89 A45.00,45.00 0 0 1 72.50,40.03"/>
+<path stroke-width="6" d="M71.62,41.54 A43.25,43.25 0 0 1 82.14,50.06"/>
+<path stroke-width="2.5" stroke-opacity="0.8" d="M15.07,47.55 L10.98,43.87 M27.93,37.50 L25.35,32.65 M42.65,32.58 L41.79,27.15 M58.16,32.71 L59.12,27.30"/>
+</g>
+<g filter="url(#glow)" stroke-opacity="0.55"><path stroke-width="6.5" d="M50.00,79.00 L61.40,41.70"/></g>
+<path stroke-width="4.5" d="M50.00,79.00 L61.40,41.70"/>
+<circle cx="50.0" cy="79.0" r="6" fill="#E6EDF2" stroke="none"/>
+</g>
+<circle cx="50" cy="50" r="47" stroke-width="2.5"/>
+</g>
+</svg>
