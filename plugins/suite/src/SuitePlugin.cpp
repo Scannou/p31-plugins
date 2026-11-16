@@ -22,13 +22,15 @@ namespace {
     };
 
     // One history for every panel: as long as the longest any of them needs.
-    constexpr size_t kRingFrames = std::max({kSpectrumRingFrames, kScopeRingFrames, kSpectrogramRingFrames});
+    constexpr size_t kRingFrames =
+        std::max({kSpectrumRingFrames, kScopeRingFrames, kSpectrogramRingFrames, kMeterRingFrames});
 
     // The panels' settings share the state, each under its own key prefix.
     // The arrangement's keys ("layout.*") have none.
     constexpr const char* kSpectrumKeys = "spectrum.";
     constexpr const char* kScopeKeys = "scope.";
     constexpr const char* kSpectrogramKeys = "spectrogram.";
+    constexpr const char* kMeterKeys = "meter.";
 
     // A module's settings as saved for new instances of its own plugin.
     template <class Module>
@@ -46,7 +48,7 @@ const clap_plugin_descriptor SuitePlugin::descriptor{
     .manual_url = "",
     .support_url = P31_PROJECT_URL "/issues",
     .version = P31_VERSION,
-    .description = "Spectrum analyzer, vectorscope and spectrogram in one window",
+    .description = "Spectrum analyzer, vectorscope, spectrogram and level meter in one window",
     .features = kFeatures,
 };
 
@@ -55,7 +57,9 @@ SuitePlugin::SuitePlugin(const clap_host* host)
       _ring(2, kRingFrames),
       _spectrum(makeSpectrumModule(*this, _ring)),
       _scope(makeScopeModule(*this, _ring)),
-      _spectrogram(makeSpectrogramModule(*this, _ring)) {}
+      _spectrogram(makeSpectrogramModule(*this, _ring)),
+      _meter(makeMeterModule(*this, _ring)),
+      _meterMeasurement(_meter) {}
 
 void SuitePlugin::analyze(const float* const* channels, uint32_t channelCount, uint32_t frames) {
     _ring.write(channels, channelCount, frames);
@@ -63,7 +67,13 @@ void SuitePlugin::analyze(const float* const* channels, uint32_t channelCount, u
 
 void SuitePlugin::setLayout(const p31::suite::Layout& layout) {
     _layout = layout;
+    layoutChanged();
     settingsEdited();
+}
+
+// A hidden panel does no work: the meter only measures while it is shown.
+void SuitePlugin::layoutChanged() {
+    _meterMeasurement.setRunning(_layout.contains(p31::suite::PanelMeter));
 }
 
 p31::suite::Layout SuitePlugin::defaultLayout() const {
@@ -87,7 +97,8 @@ void SuitePlugin::clearDefaultLayout() const {
 std::string SuitePlugin::encodeSettings() const {
     return _layout.encode() + p31::withKeyPrefix(_spectrum.encode(), kSpectrumKeys) +
            p31::withKeyPrefix(_scope.encode(), kScopeKeys) +
-           p31::withKeyPrefix(_spectrogram.encode(), kSpectrogramKeys);
+           p31::withKeyPrefix(_spectrogram.encode(), kSpectrogramKeys) +
+           p31::withKeyPrefix(_meter.encode(), kMeterKeys);
 }
 
 void SuitePlugin::decodeSettings(std::string_view text) {
@@ -96,13 +107,17 @@ void SuitePlugin::decodeSettings(std::string_view text) {
     _spectrum.decode(p31::withoutKeyPrefix(text, kSpectrumKeys));
     _scope.decode(p31::withoutKeyPrefix(text, kScopeKeys));
     _spectrogram.decode(p31::withoutKeyPrefix(text, kSpectrogramKeys));
+    _meter.decode(p31::withoutKeyPrefix(text, kMeterKeys));
+    _meterMeasurement.settingsChanged();
+    layoutChanged();
 }
 
 // The arrangement saved for new instances of the suite, and every panel's
 // settings as saved for new instances of its own plugin.
 std::string SuitePlugin::defaultSettings() const {
     return PluginBase::defaultSettings() + moduleDefault(_spectrum, kSpectrumKeys) +
-           moduleDefault(_scope, kScopeKeys) + moduleDefault(_spectrogram, kSpectrogramKeys);
+           moduleDefault(_scope, kScopeKeys) + moduleDefault(_spectrogram, kSpectrogramKeys) +
+           moduleDefault(_meter, kMeterKeys);
 }
 
 std::unique_ptr<p31::Editor> SuitePlugin::createEditor(uint32_t width, uint32_t height) {
@@ -111,7 +126,7 @@ std::unique_ptr<p31::Editor> SuitePlugin::createEditor(uint32_t width, uint32_t 
 
 p31::EditorSizeLimits SuitePlugin::editorSizeLimits() const {
     p31::EditorSizeLimits limits;
-    limits.defaultWidth = 1200;
+    limits.defaultWidth = 1400;
     limits.defaultHeight = 700;
     limits.minWidth = 420;
     limits.minHeight = 240;

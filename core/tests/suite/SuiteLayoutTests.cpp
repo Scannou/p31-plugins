@@ -17,6 +17,14 @@ using namespace p31::suite;
 
 namespace {
 
+// The default without the meter: the scope in the left 30 %, the spectrum
+// over the spectrogram in the rest.
+Layout threePanels() {
+    Layout layout;
+    layout.remove(PanelMeter);
+    return layout;
+}
+
 Rect paneRect(const Layout& layout, int panel, double w = 1000, double h = 600) {
     for (const Layout::Pane& p : layout.arrange(w, h).panes) {
         if (p.panel == panel) return p.rect;
@@ -59,16 +67,25 @@ void checkTiles(const Layout& layout, double w, double h) {
 TEST_CASE("SuiteLayout: the default shows every panel") {
     const Layout layout;
     CHECK(layout.count() == kPanelCount);
-    // Scope in the left 30 %, spectrum over spectrogram in the rest.
-    CHECK(same(paneRect(layout, PanelScope), 0, 0, 300, 600));
-    CHECK(same(paneRect(layout, PanelSpectrum), 301, 0, 699, 300));
-    CHECK(same(paneRect(layout, PanelSpectrogram), 301, 301, 699, 299));
-    checkTiles(layout, 1000, 600);
+    // The meter in the right 16 %; in the rest the scope in the left 30 %,
+    // beside the spectrum over the spectrogram.
+    CHECK(same(paneRect(layout, PanelMeter, 1500, 600), 1260, 0, 240, 600));
+    CHECK(same(paneRect(layout, PanelScope, 1500, 600), 0, 0, 377, 600));
+    CHECK(same(paneRect(layout, PanelSpectrum, 1500, 600), 378, 0, 881, 300));
+    CHECK(same(paneRect(layout, PanelSpectrogram, 1500, 600), 378, 301, 881, 299));
+    checkTiles(layout, 1500, 600);
     checkTiles(layout, 1281, 733);
+
+    const Layout three = threePanels();
+    CHECK(three.count() == 3);
+    CHECK(same(paneRect(three, PanelScope), 0, 0, 300, 600));
+    CHECK(same(paneRect(three, PanelSpectrum), 301, 0, 699, 300));
+    CHECK(same(paneRect(three, PanelSpectrogram), 301, 301, 699, 299));
+    checkTiles(three, 1000, 600);
 }
 
 TEST_CASE("SuiteLayout: hiding a panel gives its area to the neighbour") {
-    Layout layout;
+    Layout layout = threePanels();
     CHECK(layout.remove(PanelSpectrum));
     CHECK_FALSE(layout.contains(PanelSpectrum));
     CHECK(same(paneRect(layout, PanelSpectrogram), 301, 0, 699, 600));
@@ -83,7 +100,7 @@ TEST_CASE("SuiteLayout: hiding a panel gives its area to the neighbour") {
 }
 
 TEST_CASE("SuiteLayout: a panel is shown beside another or along an edge") {
-    Layout layout;
+    Layout layout = threePanels();
     layout.remove(PanelSpectrum);
     layout.remove(PanelScope);
 
@@ -102,7 +119,7 @@ TEST_CASE("SuiteLayout: a panel is shown beside another or along an edge") {
 }
 
 TEST_CASE("SuiteLayout: show picks the largest panel and its longer side") {
-    Layout layout;
+    Layout layout = threePanels();
     layout.remove(PanelSpectrogram);
     // Scope 300 x 600, spectrum 699 x 600: the spectrum is halved side by side.
     CHECK(layout.show(PanelSpectrogram, 1000, 600));
@@ -118,12 +135,12 @@ TEST_CASE("SuiteLayout: show picks the largest panel and its longer side") {
 }
 
 TEST_CASE("SuiteLayout: move and swap") {
-    Layout layout;
+    Layout layout = threePanels();
     // The scope goes from the left column to under the spectrogram.
     CHECK(layout.move(PanelScope, PanelSpectrogram, Edge::Bottom));
     CHECK(same(paneRect(layout, PanelSpectrum), 0, 0, 1000, 300));
     CHECK(paneRect(layout, PanelScope).y > paneRect(layout, PanelSpectrogram).y);
-    CHECK(layout.count() == kPanelCount);
+    CHECK(layout.count() == 3);
     CHECK_FALSE(layout.move(PanelScope, PanelScope, Edge::Left));
 
     CHECK(layout.moveToEdge(PanelSpectrum, Edge::Left));
@@ -150,7 +167,7 @@ TEST_CASE("SuiteLayout: move and swap") {
 }
 
 TEST_CASE("SuiteLayout: dividers set the ratios") {
-    Layout layout;
+    Layout layout = threePanels();
     const Layout::Arrangement a = layout.arrange(1000, 600);
     REQUIRE(a.dividers.size() == 2);
     // The first is the vertical line right of the scope.
@@ -177,7 +194,7 @@ TEST_CASE("SuiteLayout: dividers set the ratios") {
 }
 
 TEST_CASE("SuiteLayout: a window too small for the minimums shares what there is") {
-    const Layout layout;
+    const Layout layout = threePanels();
     checkTiles(layout, 200, 100);
     for (const Layout::Pane& p : layout.arrange(200, 100).panes) {
         CHECK(p.rect.w > 0.0);
@@ -187,7 +204,7 @@ TEST_CASE("SuiteLayout: a window too small for the minimums shares what there is
 }
 
 TEST_CASE("SuiteLayout: text round trip") {
-    Layout layout;
+    Layout layout = threePanels();
     layout.move(PanelSpectrogram, PanelScope, Edge::Top);
     layout.setRatio(0, 0.4321);
     const std::string text = layout.encode();
@@ -198,7 +215,7 @@ TEST_CASE("SuiteLayout: text round trip") {
     CHECK(loaded == layout);
     CHECK(loaded.encode() == text);
 
-    Layout one;
+    Layout one = threePanels();
     one.remove(PanelScope);
     one.remove(PanelSpectrum);
     CHECK(one.encode() == "layout.count=1\nlayout.0.kind=0\nlayout.0.value=2\n");
@@ -207,7 +224,7 @@ TEST_CASE("SuiteLayout: text round trip") {
 }
 
 TEST_CASE("SuiteLayout: broken text is refused and changes nothing") {
-    Layout layout;
+    Layout layout = threePanels();
     const Layout before = layout;
     CHECK_FALSE(layout.decode(""));
     CHECK_FALSE(layout.decode("layout.count=0\n"));
@@ -222,7 +239,7 @@ TEST_CASE("SuiteLayout: broken text is refused and changes nothing") {
     CHECK_FALSE(layout.decode("layout.count=3\nlayout.0.kind=2\nlayout.0.value=5000\nlayout.1.kind=0\nlayout.1.value=1\n"
                               "layout.2.kind=0\nlayout.2.value=1\n"));
     // Unknown panel and kind.
-    CHECK_FALSE(layout.decode("layout.count=1\nlayout.0.kind=0\nlayout.0.value=3\n"));
+    CHECK_FALSE(layout.decode("layout.count=1\nlayout.0.kind=0\nlayout.0.value=4\n"));
     CHECK_FALSE(layout.decode("layout.count=1\nlayout.0.kind=5\nlayout.0.value=0\n"));
     CHECK(layout == before);
 

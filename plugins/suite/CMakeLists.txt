@@ -12,6 +12,8 @@ p31_add_plugin(
         ../spectrum/src/SpectrumEditor.mm
         ../scope/src/ScopeEditor.mm
         ../spectrogram/src/SpectrogramEditor.mm
-    LINK p31-render-suite p31-render-spectrum p31-render-scope p31-render-spectrogram
+        ../meter/src/MeterEditor.mm
+        ../meter/src/MeterMeasurement.cpp
+    LINK p31-render-suite p31-render-spectrum p31-render-scope p31-render-spectrogram p31-render-meter
 )
-target_include_directories(p31-suite-impl PRIVATE ../spectrum/src ../scope/src ../spectrogram/src)
+target_include_directories(p31-suite-impl PRIVATE ../spectrum/src ../scope/src ../spectrogram/src ../meter/src)

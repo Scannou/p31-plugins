@@ -35,11 +35,13 @@ namespace {
 
 Layout::Layout() {
     _nodes = {
+        {-1, true, 0.84},
         {-1, true, 0.3},
         {PanelScope, true, 0.5},
         {-1, false, 0.5},
         {PanelSpectrum, true, 0.5},
         {PanelSpectrogram, true, 0.5},
+        {PanelMeter, true, 0.5},
     };
 }
 

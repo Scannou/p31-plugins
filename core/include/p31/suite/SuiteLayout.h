@@ -22,7 +22,8 @@ enum Panel {
     PanelSpectrum = 0,
     PanelScope = 1,
     PanelSpectrogram = 2,
-    kPanelCount = 3,
+    PanelMeter = 3,
+    kPanelCount = 4,
 };
 
 enum class Edge { Left, Right, Top, Bottom };
@@ -38,7 +39,8 @@ constexpr double kMinPanelHeight = 100.0;
 
 class Layout {
 public:
-    // The scope on the left, the spectrum above the spectrogram beside it.
+    // The scope on the left, the spectrum above the spectrogram beside it,
+    // the meter down the right edge.
     Layout();
 
     bool contains(int panel) const;

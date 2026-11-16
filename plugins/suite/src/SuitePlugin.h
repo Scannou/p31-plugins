@@ -2,15 +2,18 @@
 //  SuitePlugin.h
 //  p31-suite
 //
-//  P31 Suite: the spectrum, the scope and the spectrogram in one window.
-//  The audio thread copies every block into one ring buffer; each panel's
-//  editor reads it on the display refresh, as in the plugins of their own.
-//  The state holds every panel's settings, shown or not, and how the panels
-//  are arranged.
+//  P31 Suite: the spectrum, the scope, the spectrogram and the meter in one
+//  window. The audio thread copies every block into one ring buffer; each
+//  panel's editor reads it on the display refresh, as in the plugins of
+//  their own (the meter's measurement on a timer too, while its panel is
+//  shown). The state holds every panel's settings, shown or not, and how the
+//  panels are arranged.
 //
 
 #pragma once
 
+#include "MeterMeasurement.h"
+#include "MeterModule.h"
 #include "ScopeModule.h"
 #include "SpectrogramModule.h"
 #include "SpectrumModule.h"
@@ -28,6 +31,8 @@ public:
     SpectrumModule& spectrum() { return _spectrum; }
     ScopeModule& scope() { return _scope; }
     SpectrogramModule& spectrogram() { return _spectrogram; }
+    MeterModule& meter() { return _meter; }
+    MeterMeasurement& meterMeasurement() { return _meterMeasurement; }
 
     // Main thread. Which panels show, and where.
     const p31::suite::Layout& layout() const { return _layout; }
@@ -49,11 +54,14 @@ private:
     std::string encodeSettings() const override;
     void decodeSettings(std::string_view text) override;
     std::string defaultSettings() const override;
+    void layoutChanged();
 
     p31::AudioRing _ring;
     SpectrumModule _spectrum;
     ScopeModule _scope;
     SpectrogramModule _spectrogram;
+    MeterModule _meter;
+    MeterMeasurement _meterMeasurement;
     p31::suite::Layout _layout;
 };
 

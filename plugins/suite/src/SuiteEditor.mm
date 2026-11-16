@@ -11,6 +11,7 @@
 
 #include "SuiteEditor.h"
 
+#include "MeterEditor.h"
 #include "ScopeEditor.h"
 #include "SpectrogramEditor.h"
 #include "SpectrumEditor.h"
@@ -32,6 +33,7 @@ constexpr std::array<std::pair<int, const char*>, kPanelCount> kPanelNames{{
     {PanelSpectrum, "Spectrum"},
     {PanelScope, "Scope"},
     {PanelSpectrogram, "Spectrogram"},
+    {PanelMeter, "Meter"},
 }};
 
 uint32_t points(CGFloat length) {
@@ -95,7 +97,8 @@ private:
         switch (panel) {
             case PanelSpectrum: return makeSpectrumEditor(_plugin.spectrum(), width, height);
             case PanelScope: return makeScopeEditor(_plugin.scope(), width, height);
-            default: return makeSpectrogramEditor(_plugin.spectrogram(), width, height);
+            case PanelSpectrogram: return makeSpectrogramEditor(_plugin.spectrogram(), width, height);
+            default: return makeMeterEditor(_plugin.meter(), _plugin.meterMeasurement(), width, height);
         }
     }
 
@@ -120,7 +123,12 @@ private:
             root.requestResize = nil;
             root.settingsHost = _view;
             root.toolbarAccessories = [_view toolbarItemsForPanel:panel];
-            root.extendMenu = ^(NSMenu* menu) { editor->addPanelsMenu(menu); };
+            // After the items the panel adds itself.
+            void (^own)(NSMenu*) = root.extendMenu;
+            root.extendMenu = ^(NSMenu* menu) {
+                if (own) own(menu);
+                editor->addPanelsMenu(menu);
+            };
             _panels[panel]->attach((__bridge void*)pane);
         }
     }
