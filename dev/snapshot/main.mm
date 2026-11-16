@@ -19,6 +19,13 @@
 //  bottom left), for hover readouts (held down on the spectrogram).
 //  P31_HOLD=1 stops the audio shortly before the capture, as a stopped DAW
 //  does (a spectrogram then rests on whole pixels).
+//  For P31 Suite, where a panel is named Spectrum, Scope or Spectrogram:
+//  P31_TOOLBAR=1 shows every panel's toolbar, as with the mouse over it.
+//  P31_DIVIDER=n,dx,dy drags the n-th divider by that many points.
+//  P31_MOVE=panel,x,y drags the panel by its handle to that fraction of the
+//  editor (0,0 is top left) and drops it; with P31_MOVE_HOLD=1 the capture is
+//  taken before the drop. P31_HIDE=panel clicks the panel's hide button.
+//  P31_PANELS=title picks that item in the first panel's Panels menu.
 //  signals: mix (default), mono, left, wide, antiphase, silence,
 //           sine (1 kHz at -6 dBFS), tones (100 Hz / 1 kHz / 10 kHz at -12 dBFS),
 //           white (white noise at -20 dBFS RMS),
@@ -173,12 +180,90 @@ NSPopUpButton* findPopupWithItem(NSView* view, NSString* title) {
     return nil;
 }
 
+// Hidden views do not count: an editor inside P31 Suite keeps its own
+// resize grip hidden.
 NSView* findViewOfClass(NSView* view, NSString* prefix) {
+    if (view.hidden) return nil;
     if ([NSStringFromClass([view class]) hasPrefix:prefix]) return view;
     for (NSView* sub in view.subviews) {
         if (NSView* found = findViewOfClass(sub, prefix)) return found;
     }
     return nil;
+}
+
+void collectViewsOfClass(NSView* view, NSString* prefix, NSMutableArray<NSView*>* out) {
+    if ([NSStringFromClass([view class]) hasPrefix:prefix]) [out addObject:view];
+    for (NSView* sub in view.subviews) collectViewsOfClass(sub, prefix, out);
+}
+
+NSEvent* mouseEvent(NSWindow* window, NSEventType type, NSPoint inWindow) {
+    return [NSEvent mouseEventWithType:type
+                              location:inWindow
+                         modifierFlags:0
+                             timestamp:NSProcessInfo.processInfo.systemUptime
+                          windowNumber:window.windowNumber
+                               context:nil
+                           eventNumber:0
+                            clickCount:1
+                              pressure:1.0f];
+}
+
+// The editor root of P31 Suite's panel named `panel` ("Scope").
+NSView* suitePanelRoot(NSWindow* window, const char* panel) {
+    NSView* content = findViewOfClass(window.contentView, [NSString stringWithFormat:@"P31%sView", panel]);
+    for (NSView* v = content; v; v = v.superview) {
+        if ([NSStringFromClass([v class]) hasPrefix:@"P31EditorRootView"]) return v;
+    }
+    return nil;
+}
+
+// Press P31 Suite's n-th divider and drag it by (dx, dy) points.
+bool dragDivider(NSWindow* window, int index, double dx, double dy) {
+    NSMutableArray<NSView*>* dividers = [NSMutableArray array];
+    collectViewsOfClass(window.contentView, @"P31SuiteDivider", dividers);
+    if (index < 0 || index >= static_cast<int>(dividers.count)) return false;
+    NSView* divider = dividers[index];
+    const NSPoint start = [divider convertPoint:NSMakePoint(NSMidX(divider.bounds), NSMidY(divider.bounds)) toView:nil];
+    [divider mouseDown:mouseEvent(window, NSEventTypeLeftMouseDown, start)];
+    constexpr int kSteps = 10;
+    for (int i = 1; i <= kSteps; ++i) {
+        // Window y grows upwards: dragging down is a smaller y.
+        const NSPoint p = NSMakePoint(start.x + dx * i / kSteps, start.y - dy * i / kSteps);
+        [divider mouseDragged:mouseEvent(window, NSEventTypeLeftMouseDragged, p)];
+        [[NSRunLoop mainRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.02]];
+    }
+    [divider mouseUp:mouseEvent(window, NSEventTypeLeftMouseUp, NSMakePoint(start.x + dx, start.y - dy))];
+    return true;
+}
+
+// Press a panel's handle and drag it to (fx, fy) of the editor, measured
+// from the top left. Returns the handle and the last event, for the drop.
+NSView* dragPanel(NSWindow* window, const char* panel, double fx, double fy, NSPoint* end) {
+    NSView* root = suitePanelRoot(window, panel);
+    NSView* handle = root ? findViewOfClass(root, @"P31SuiteHandle") : nil;
+    if (!handle) return nil;
+    const NSRect content = window.contentView.bounds;
+    const NSPoint start = [handle convertPoint:NSMakePoint(NSMidX(handle.bounds), NSMidY(handle.bounds)) toView:nil];
+    *end = NSMakePoint(content.size.width * fx, content.size.height * (1.0 - fy));
+    [handle mouseDown:mouseEvent(window, NSEventTypeLeftMouseDown, start)];
+    constexpr int kSteps = 10;
+    for (int i = 1; i <= kSteps; ++i) {
+        const NSPoint p = NSMakePoint(start.x + (end->x - start.x) * i / kSteps, start.y + (end->y - start.y) * i / kSteps);
+        [handle mouseDragged:mouseEvent(window, NSEventTypeLeftMouseDragged, p)];
+        [[NSRunLoop mainRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.02]];
+    }
+    return handle;
+}
+
+// What a right-click on the first panel shows: its menu's Panels submenu.
+NSMenu* panelsMenu(NSWindow* window) {
+    NSView* root = findViewOfClass(window.contentView, @"P31EditorRootView");
+    if (![root respondsToSelector:@selector(extendMenu)]) return nil;
+    void (^extend)(NSMenu*) = [root valueForKey:@"extendMenu"];
+    if (!extend) return nil;
+    NSMenu* menu = [[NSMenu alloc] initWithTitle:@""];
+    extend(menu);
+    return [menu itemWithTitle:@"Panels"].submenu;
 }
 
 // Press on the editor's resize grip and drag it by (dx, dy) points in steps.
@@ -352,6 +437,51 @@ int main(int argc, const char* argv[]) {
                 return 1;
             }
         }
+        if (std::getenv("P31_TOOLBAR")) {
+            NSMutableArray<NSView*>* roots = [NSMutableArray array];
+            collectViewsOfClass(window.contentView, @"P31EditorRootView", roots);
+            for (NSView* root in roots) {
+                [root mouseEntered:mouseEvent(window, NSEventTypeMouseMoved, NSZeroPoint)];
+            }
+        }
+        if (const char* divider = std::getenv("P31_DIVIDER")) {
+            int index = 0;
+            double dx = 0, dy = 0;
+            if (std::sscanf(divider, "%d,%lf,%lf", &index, &dx, &dy) != 3 || !dragDivider(window, index, dx, dy)) {
+                std::fprintf(stderr, "divider drag failed\n");
+                return 1;
+            }
+        }
+        if (const char* hide = std::getenv("P31_HIDE")) {
+            NSView* root = suitePanelRoot(window, hide);
+            NSMutableArray<NSView*>* buttons = [NSMutableArray array];
+            if (root) collectViewsOfClass(root, @"NSButton", buttons);
+            NSButton* button = nil;
+            for (NSView* b in buttons) {
+                if ([b.toolTip hasPrefix:@"Hide this panel"]) button = (NSButton*)b;
+            }
+            if (!button) { std::fprintf(stderr, "no hide button\n"); return 1; }
+            [button performClick:nil];
+        }
+        if (const char* title = std::getenv("P31_PANELS")) {
+            NSMenuItem* item = [panelsMenu(window) itemWithTitle:@(title)];
+            if (!item || !item.enabled) { std::fprintf(stderr, "no Panels item \"%s\"\n", title); return 1; }
+            [NSApp sendAction:item.action to:item.target from:item];
+        }
+        NSView* moveHandle = nil;
+        NSPoint moveEnd = NSZeroPoint;
+        if (const char* move = std::getenv("P31_MOVE")) {
+            char panel[32] = {};
+            double fx = 0, fy = 0;
+            if (std::sscanf(move, "%31[^,],%lf,%lf", panel, &fx, &fy) == 3) {
+                moveHandle = dragPanel(window, panel, fx, fy, &moveEnd);
+            }
+            if (!moveHandle) { std::fprintf(stderr, "panel move failed\n"); return 1; }
+            if (!std::getenv("P31_MOVE_HOLD")) {
+                [moveHandle mouseUp:mouseEvent(window, NSEventTypeLeftMouseUp, moveEnd)];
+                moveHandle = nil;
+            }
+        }
         const bool about = std::getenv("P31_ABOUT") != nullptr;
         if (about) {
             NSView* root = findResponder(window.contentView, @selector(showAbout));
@@ -419,6 +549,7 @@ int main(int argc, const char* argv[]) {
             ok = writePng(window.contentView, outPath);
         }
 
+        if (moveHandle) [moveHandle mouseUp:mouseEvent(window, NSEventTypeLeftMouseUp, moveEnd)];
         running.store(false);
         if (audio.joinable()) audio.join();
         if (std::getenv("P31_DUMP_STATE")) std::printf("%s", saveStateText(plugin).c_str());
