@@ -20,6 +20,18 @@ namespace {
         return true;
     }
 
+    // Calls `line(key, rest)` for every "key=rest" line of `text`.
+    template <class Fn>
+    void forEachLine(std::string_view text, Fn&& line) {
+        while (!text.empty()) {
+            const size_t end = text.find('\n');
+            const std::string_view l = text.substr(0, end);
+            text = end == std::string_view::npos ? std::string_view{} : text.substr(end + 1);
+            const size_t eq = l.find('=');
+            if (eq != std::string_view::npos) line(l.substr(0, eq), l.substr(eq));
+        }
+    }
+
     template <class T>
     void readInto(const StateReader& r, std::string_view key, T& value) {
         int64_t v = 0;
@@ -63,6 +75,23 @@ bool StateReader::get(std::string_view key, int64_t& out) const {
     if (it == _values.end()) return false;
     out = it->second;
     return true;
+}
+
+std::string withKeyPrefix(std::string_view text, std::string_view prefix) {
+    std::string out;
+    forEachLine(text, [&](std::string_view key, std::string_view rest) {
+        out.append(prefix).append(key).append(rest).push_back('\n');
+    });
+    return out;
+}
+
+std::string withoutKeyPrefix(std::string_view text, std::string_view prefix) {
+    std::string out;
+    forEachLine(text, [&](std::string_view key, std::string_view rest) {
+        if (key.size() <= prefix.size() || key.substr(0, prefix.size()) != prefix) return;
+        out.append(key.substr(prefix.size())).append(rest).push_back('\n');
+    });
+    return out;
 }
 
 void StateReader::operator()(std::string_view key, int& value) const { readInto(*this, key, value); }

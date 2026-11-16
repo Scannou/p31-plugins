@@ -16,6 +16,7 @@ add_executable(p31-core-tests
     spectrum/FftTests.cpp
     spectrum/SpectrumAnalyzerTests.cpp
     spectrum/StftTests.cpp
+    suite/SuiteLayoutTests.cpp
 )
 target_link_libraries(p31-core-tests PRIVATE p31-core doctest::doctest p31-warnings)
 p31_cxx20(p31-core-tests)

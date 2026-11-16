@@ -23,6 +23,7 @@ add_library(p31-core STATIC
     src/spectrum/Fft.cpp
     src/spectrum/SpectrumAnalyzer.cpp
     src/spectrum/Stft.cpp
+    src/suite/SuiteLayout.cpp
 )
 target_include_directories(p31-core PUBLIC include)
 target_link_libraries(p31-core PRIVATE p31-pffft p31-warnings)

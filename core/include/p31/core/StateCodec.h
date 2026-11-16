@@ -49,6 +49,13 @@ private:
     std::unordered_map<std::string, int64_t> _values;
 };
 
+// Several settings in one text, each under its own key prefix:
+// "fft_size=1" becomes "spectrum.fft_size=1" and back. Lines that are not
+// "key=value" are dropped.
+std::string withKeyPrefix(std::string_view text, std::string_view prefix);
+// The lines of `text` whose key starts with `prefix`, without it.
+std::string withoutKeyPrefix(std::string_view text, std::string_view prefix);
+
 // Settings struct `S` with a visitFields(S&, visitor) overload, to and from text.
 template <class S>
 std::string encodeSettings(const S& settings) {

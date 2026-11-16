@@ -87,6 +87,18 @@ TEST_CASE("StateReader parses what it can and skips the rest") {
     CHECK(b);
 }
 
+TEST_CASE("Key prefixes keep several settings apart in one text") {
+    const std::string a = "fft_size=8192\nlight.grid=7\n", b = "fft_size=4096\n";
+    const std::string both = withKeyPrefix(a, "spectrum.") + "other=1\n" + withKeyPrefix(b, "spectrogram.");
+    CHECK(both == "spectrum.fft_size=8192\nspectrum.light.grid=7\nother=1\nspectrogram.fft_size=4096\n");
+    CHECK(withoutKeyPrefix(both, "spectrum.") == a);
+    CHECK(withoutKeyPrefix(both, "spectrogram.") == b);
+    CHECK(withoutKeyPrefix(both, "scope.").empty());
+    // Lines without a key and value are dropped, the last line needs no newline.
+    CHECK(withKeyPrefix("broken\n\na=1", "p.") == "p.a=1\n");
+    CHECK(withoutKeyPrefix("p.=3\np.a=1\r\n", "p.") == "a=1\r\n");
+}
+
 TEST_CASE("Scope settings survive a round trip with every field changed") {
     checkRoundTrip<scope::ScopeSettings>();
 }
