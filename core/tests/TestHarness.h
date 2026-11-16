@@ -1,9 +1,10 @@
 //
-//  ScopeTestHarness.h
+//  TestHarness.h
 //  p31-core-tests
 //
-//  Maps the check macros of the original foo_jl_vectorscope_mac test suites
-//  onto doctest, so the ported tests stay line-for-line comparable. The
+//  Maps the check macros of the original fb2k component test suites
+//  (foo_jl_vectorscope_mac, foo_jl_spectrogram_mac) onto doctest, so the
+//  ported tests stay line-for-line comparable. The
 //  macros are renamed (EXPECT*) because doctest's own CHECK is variadic and
 //  would silently accept CHECK(cond, "message") as a comma expression.
 //

@@ -5,7 +5,7 @@
 //  Unit tests for the afterglow intensity buffer and its colour table.
 //
 
-#include "ScopeTestHarness.h"
+#include "../TestHarness.h"
 #include <p31/scope/PhosphorBuffer.h>
 
 #include <algorithm>

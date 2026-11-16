@@ -6,7 +6,7 @@
 //  placement, bar tracks).
 //
 
-#include "ScopeTestHarness.h"
+#include "../TestHarness.h"
 #include <p31/scope/ScopeLayout.h>
 
 using namespace p31::scope_layout;

@@ -6,7 +6,7 @@
 //  band splitting, auto-gain).
 //
 
-#include "ScopeTestHarness.h"
+#include "../TestHarness.h"
 #include <p31/scope/StereoAnalysis.h>
 
 #include <algorithm>
