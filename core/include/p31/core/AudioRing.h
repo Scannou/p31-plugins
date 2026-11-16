@@ -13,7 +13,7 @@
 //  as lost instead of returned torn.
 //
 //  Frames are stored interleaved. The reader side hands out interleaved
-//  frames too, the layout the scope and the spectrum both consume.
+//  frames too, the layout the scope, the spectrum and the spectrogram consume.
 //
 
 #pragma once

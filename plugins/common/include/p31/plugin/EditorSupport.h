@@ -2,7 +2,7 @@
 //  EditorSupport.h
 //  p31-plugin-common
 //
-//  Pieces both editors share: settings rows for the parameters and the
+//  Pieces every editor shares: settings rows for the parameters and the
 //  appearance, the freeze toggle, and the Presets menu's source. Header-only
 //  Objective-C++, included by the editors' .mm files (the AppKit types it
 //  uses are compiled into each plugin with its own class names).

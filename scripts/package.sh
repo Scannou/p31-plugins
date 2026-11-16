@@ -50,6 +50,7 @@ PKG=$DIST/P31-Plugins-$VERSION.pkg
 PLUGIN_ROWS=(
     "spectrum|P31 Spectrum|Real-time spectrum analyzer"
     "scope|P31 Scope|Vectorscope with tri-band phase correlation"
+    "spectrogram|P31 Spectrogram|Scrolling spectrogram"
 )
 #   format: id | title | bundle extension | install location | hosts
 FORMAT_ROWS=(
@@ -147,8 +148,9 @@ step "Installer"
     echo
     echo "P31 Spectrum: real-time spectrum analyzer."
     echo "P31 Scope: vectorscope with tri-band phase correlation."
+    echo "P31 Spectrogram: scrolling spectrogram."
     echo
-    echo "Both pass audio through untouched. The next steps let you pick which"
+    echo "All pass audio through untouched. The next steps let you pick which"
     echo "plugins to install and in which formats: CLAP, VST3, Audio Unit, and"
     echo "standalone apps that analyse an input device."
 } > "$DIST/resources/welcome.txt"

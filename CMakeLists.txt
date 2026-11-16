@@ -51,6 +51,7 @@ add_subdirectory(render)
 add_subdirectory(plugins/common)
 add_subdirectory(plugins/spectrum)
 add_subdirectory(plugins/scope)
+add_subdirectory(plugins/spectrogram)
 
 if (P31_BUILD_DEV_TOOLS)
     add_subdirectory(dev)

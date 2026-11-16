@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 BUILD=${1:-build/dev}
 OUT="$BUILD/plugins"
 PLUGINVAL=${PLUGINVAL:-/Applications/pluginval.app/Contents/MacOS/pluginval}
-PLUGINS=("P31 Spectrum:P31S" "P31 Scope:P31V")
+PLUGINS=("P31 Spectrum:P31S" "P31 Scope:P31V" "P31 Spectrogram:P31G")
 AU_MANUFACTURER=Scnu
 
 failures=()

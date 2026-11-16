@@ -2,7 +2,7 @@
 //  PluginBase.h
 //  p31-plugin-common
 //
-//  CLAP plugin shell shared by P31 Spectrum and P31 Scope: one main audio
+//  CLAP plugin shell shared by the P31 plugins: one main audio
 //  port pair (mono or stereo), audio passed through untouched with zero
 //  latency, two parameters (Freeze, Gain), a versioned state blob holding
 //  the settings, and a resizable editor. Subclasses add analysis, their

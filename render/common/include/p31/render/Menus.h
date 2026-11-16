@@ -2,7 +2,7 @@
 //  Menus.h
 //  p31-render
 //
-//  Menu items that run a block, the Presets menu shared by both plugins
+//  Menu items that run a block, the Presets menu shared by the plugins
 //  (factory presets, the user's preset files, save / delete, the default for
 //  new instances) and the About dialog. Objective-C++ only.
 //
