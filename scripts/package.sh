@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Build the macOS installer: dist/P31-Plugins-<version>.pkg. Each plugin is a
-# group of choices with one box per format (CLAP, VST3, Audio Unit, standalone
-# app), so users install only what they want.
+# Build the macOS installer: dist/P31-Plugins-<version>.pkg. It has one box
+# per plugin and one per format (CLAP, VST3, Audio Unit, standalone app), all
+# on one list, and installs the ticked plugins in the ticked formats.
 #
 #   scripts/package.sh [--skip-build] [--build-dir DIR]
 #
@@ -54,12 +54,12 @@ PLUGIN_ROWS=(
     "meter|P31 Meter|Peak, RMS and loudness meter with an analog VU look"
     "suite|P31 Suite|Spectrum analyzer, vectorscope, spectrogram and level meter in one window"
 )
-#   format: id | title | bundle extension | install location | hosts
+#   format: id | box title | bundle extension | install location | what for
 FORMAT_ROWS=(
-    "clap|CLAP|clap|/Library/Audio/Plug-Ins/CLAP|Bitwig, Reaper and other CLAP hosts"
-    "vst3|VST3|vst3|/Library/Audio/Plug-Ins/VST3|Live, Cubase, Reaper and most other hosts"
-    "au|Audio Unit|component|/Library/Audio/Plug-Ins/Components|Logic, GarageBand, Live and other AU hosts"
-    "app|Standalone app|app|/Applications|analyse any input device without a DAW"
+    "clap|Format: CLAP|clap|/Library/Audio/Plug-Ins/CLAP|for Bitwig, Reaper and other CLAP hosts"
+    "vst3|Format: VST3|vst3|/Library/Audio/Plug-Ins/VST3|for Live, Cubase, Reaper and most other hosts"
+    "au|Format: Audio Unit|component|/Library/Audio/Plug-Ins/Components|for Logic, GarageBand, Live and other AU hosts"
+    "app|Format: Standalone app|app|/Applications|to analyse what the Mac plays, or an input device, without a DAW"
 )
 field() { echo "$1" | cut -d'|' -f"$2"; }
 
@@ -154,12 +154,18 @@ step "Installer"
     echo "P31 Meter: peak, RMS and loudness meter with an analog VU look."
     echo "P31 Suite: all four in one window, arranged as you like."
     echo
-    echo "All pass audio through untouched. The next steps let you pick which"
-    echo "plugins to install and in which formats: CLAP, VST3, Audio Unit, and"
-    echo "standalone apps that analyse an input device."
+    echo "All pass audio through untouched."
+    echo
+    echo "The Installation Type step lists the plugins and, below them, the"
+    echo "formats: CLAP, VST3, Audio Unit and standalone app. Everything is"
+    echo "ticked to begin with. Untick the plugins and the formats you do not"
+    echo "want: the ticked plugins are installed in the ticked formats."
 } > "$DIST/resources/welcome.txt"
 
-# Choices: one group per plugin, one box per format inside it.
+# Choices: a box per plugin and a box per format, on one flat list (Installer
+# shows nested choices folded away, where nobody finds them). The component
+# packages hang on hidden choices, one per plugin and format, each selected
+# while both its plugin's and its format's box are ticked.
 xml=$DIST/distribution.xml
 {
     echo '<?xml version="1.0" encoding="utf-8"?>'
@@ -174,21 +180,31 @@ xml=$DIST/distribution.xml
     echo '    </volume-check>'
     echo '    <choices-outline>'
     for prow in "${PLUGIN_ROWS[@]}"; do
-        pid=$(field "$prow" 1)
-        echo "        <line choice=\"$pid\">"
+        echo "        <line choice=\"$(field "$prow" 1)\"/>"
+    done
+    for frow in "${FORMAT_ROWS[@]}"; do
+        echo "        <line choice=\"format.$(field "$frow" 1)\"/>"
+    done
+    for prow in "${PLUGIN_ROWS[@]}"; do
         for frow in "${FORMAT_ROWS[@]}"; do
-            echo "            <line choice=\"$pid.$(field "$frow" 1)\"/>"
+            echo "        <line choice=\"$(field "$prow" 1).$(field "$frow" 1)\"/>"
         done
-        echo '        </line>'
     done
     echo '    </choices-outline>'
     for prow in "${PLUGIN_ROWS[@]}"; do
         pid=$(field "$prow" 1); pname=$(field "$prow" 2); pdesc=$(field "$prow" 3)
-        echo "    <choice id=\"$pid\" title=\"$pname\" description=\"$pdesc\"/>"
+        echo "    <choice id=\"$pid\" title=\"$pname\" description=\"$pdesc. Installed in each format ticked below.\"/>"
+    done
+    for frow in "${FORMAT_ROWS[@]}"; do
+        fid=$(field "$frow" 1); ftitle=$(field "$frow" 2)
+        location=$(field "$frow" 4); purpose=$(field "$frow" 5)
+        echo "    <choice id=\"format.$fid\" title=\"$ftitle\" description=\"Installs the plugins ticked above into $location, $purpose.\"/>"
+    done
+    for prow in "${PLUGIN_ROWS[@]}"; do
+        pid=$(field "$prow" 1)
         for frow in "${FORMAT_ROWS[@]}"; do
-            fid=$(field "$frow" 1); ftitle=$(field "$frow" 2)
-            location=$(field "$frow" 4); hosts=$(field "$frow" 5)
-            echo "    <choice id=\"$pid.$fid\" title=\"$ftitle\" description=\"$location ($hosts)\">"
+            fid=$(field "$frow" 1)
+            echo "    <choice id=\"$pid.$fid\" visible=\"false\" selected=\"choices['$pid'].selected &amp;&amp; choices['format.$fid'].selected\">"
             echo "        <pkg-ref id=\"com.scannou.p31.$pid.$fid\"/>"
             echo '    </choice>'
         done
