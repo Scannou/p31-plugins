@@ -5,8 +5,8 @@
 
 # p31-plugins
 
-A spectrum analyzer and a vectorscope for macOS, as CLAP, VST3 and Audio Unit
-plugins and standalone apps. Ported from the foobar2000 components in
+A spectrum analyzer, a vectorscope and a spectrogram for macOS, as CLAP, VST3
+and Audio Unit plugins and standalone apps. Ported from the foobar2000 components in
 [fb2k-components-mac-suite](https://github.com/JendaT/fb2k-components-mac-suite).
 Audio passes through untouched, with zero latency.
 
@@ -36,6 +36,20 @@ signed yet, and each release's notes explain how to open one.
 - Correlation meter, single or per band, with a held range of recent swings
 - Auto gain, adjustable afterglow, brightness and crossovers
 
+## P31 Spectrogram
+
+![P31 Spectrogram, a test sweep in the Inferno colormap](assets/screenshots/p31-spectrogram.png)
+
+- Frequency over time, level as colour; the picture holds while the host is
+  stopped or the display is frozen
+- Reassigned analysis (default) keeps tonal lines thin, bass included, while
+  kicks stay narrow in time; multi-resolution and standard modes
+- Levels in dBFS with adjustable top level, range and slope; mid, left, right
+  or side channel
+- Logarithmic, mel or linear frequency axis; vertical or horizontal, the
+  horizontal one lining up with P31 Spectrum
+- Nine colormaps, a ramp per P31 Spectrum theme, or four colours of your own
+
 ## Using the plugins
 
 - **Settings**: hover over the editor and click the sliders icon (top right), or
@@ -48,8 +62,9 @@ signed yet, and each release's notes explain how to open one.
 - **Parameters** (automatable): *Freeze* holds the picture still, *Gain*
   (±24 dB) changes the level the analyzer sees. Audio always passes through
   untouched.
-- **Readout** (P31 Spectrum): hover over the spectrum for the frequency, the
-  nearest note with its offset in cents, and the level.
+- **Readout**: in P31 Spectrum, hover over the spectrum for the frequency, the
+  nearest note with its offset in cents, and the level. In P31 Spectrogram,
+  click and hold for the frequency and nearest note; drag to scrub.
 - **Themes**: P7 blue (Spectrum's default), P31 green, P3 amber and P4 white,
   named after CRT phosphors, plus more colour presets. Theme and custom
   colours are drawn in Display P3, at full saturation on wide-gamut screens.
@@ -70,7 +85,8 @@ a box per format, so you can install, say, only P31 Spectrum as VST3 and CLAP:
 | Audio Unit | `/Library/Audio/Plug-Ins/Components` |
 | Standalone apps | `/Applications` |
 
-To uninstall, delete `P31 Spectrum.*` and `P31 Scope.*` from those folders, then
+To uninstall, delete `P31 Spectrum.*`, `P31 Scope.*` and `P31 Spectrogram.*`
+from those folders, then
 `pkgutil --pkgs | grep com.scannou.p31 | xargs -n1 sudo pkgutil --forget`.
 
 ## Requirements
@@ -92,8 +108,8 @@ cmake --build --preset dev
 Bundles land in `<build>/plugins/`. With `P31_COPY_AFTER_BUILD=ON` (default for
 `dev`) they are also copied to `~/Library/Audio/Plug-Ins/{CLAP,VST3,Components}`.
 
-In CLion: open the folder, enable the `dev` CMake preset, build `p31-spectrum_all`
-or `p31-scope_all`.
+In CLion: open the folder, enable the `dev` CMake preset, build `p31-spectrum_all`,
+`p31-scope_all` or `p31-spectrogram_all`.
 
 ## Test
 
@@ -111,7 +127,8 @@ build/dev/dev/p31-snapshot "build/dev/plugins/P31 Scope.clap" scope.png mix 2
 
 Loads the plugin, opens its editor, plays a test signal for the given seconds
 and saves the editor as PNG. Signals: `mix`, `mono`, `left`, `wide`, `antiphase`,
-`silence` (for the scope), `sine`, `tones`, `white` (for the spectrum), or
+`silence` (for the scope), `sine`, `tones`, `white` (for the spectrum), `sweep`
+(for the spectrogram), or
 `file:<path>` with raw stereo float32 audio at 48 kHz
 (`ffmpeg -i song.wav -f f32le -ac 2 -ar 48000 song.f32`). Optional width and
 height follow the seconds; a trailing `settings [scroll]` opens the settings
@@ -121,9 +138,10 @@ page.
 |---|---|
 | `P31_STATE=<file>` | load settings text (`key=value` lines) as the plugin state first |
 | `P31_SELECT=<item>` | pick that item in a settings pop-up |
-| `P31_HOVER=x,y` | put the mouse at that fraction of the editor (hover readout) |
+| `P31_HOVER=x,y` | put the mouse at that fraction of the editor (hover readout; held down on the spectrogram) |
 | `P31_DRAG=dx,dy` | drag the resize grip, with the host resizing like a DAW |
 | `P31_ABOUT=1` | save the About dialog instead of the editor |
+| `P31_HOLD=1` | stop the audio a second before the capture, as a stopped DAW does |
 | `P31_DUMP_STATE=1` | print the saved state at the end |
 
 ## Validate
@@ -133,7 +151,7 @@ scripts/validate.sh [build-dir]
 ```
 
 Runs clap-validator, the Steinberg VST3 validator, `auval -strict` and pluginval
-(strictness 10, including GUI tests) against both plugins.
+(strictness 10, including GUI tests) against every plugin.
 
 ## Releases
 
@@ -190,6 +208,7 @@ render/          AppKit views, compiled into each plugin (unique ObjC class name
 plugins/common/  shared CLAP shell (ports, state, pass-through, editor hosting)
 plugins/spectrum/
 plugins/scope/
+plugins/spectrogram/
 dev/             developer tools (p31-snapshot)
 cmake/ scripts/  build helpers; bootstrap, validate, package, notices
 patches/         fixes to submodules, applied by scripts/bootstrap.sh (see patches/README.md)
