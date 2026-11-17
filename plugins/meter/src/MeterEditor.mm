@@ -161,7 +161,7 @@ private:
         return p31::ui::makePresetMenu(
             p31::editor::presetSource<MeterSettings>(_module, factoryPresets(),
                                                      [editor](const MeterSettings& s) { editor->applyPreset(s); }),
-            _root);
+            _root.dialogAnchor);
     }
 
     void resetPeaks() {

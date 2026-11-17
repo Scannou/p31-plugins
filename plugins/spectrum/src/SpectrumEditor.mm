@@ -188,7 +188,7 @@ private:
         return p31::ui::makePresetMenu(
             p31::editor::presetSource<SpectrumSettings>(_module, factoryPresets(),
                                                          [editor](const SpectrumSettings& s) { editor->applyPreset(s); }),
-            _root);
+            _root.dialogAnchor);
     }
 
     Form buildForm();

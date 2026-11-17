@@ -17,6 +17,7 @@ target_sources(p31-render-common INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/common/src/Logo.mm
     ${CMAKE_CURRENT_SOURCE_DIR}/common/src/Menus.mm
     ${CMAKE_CURRENT_SOURCE_DIR}/common/src/SettingsPanel.mm
+    ${CMAKE_CURRENT_SOURCE_DIR}/common/src/SettingsWindow.mm
 )
 target_include_directories(p31-render-common INTERFACE common/include ${CMAKE_CURRENT_BINARY_DIR}/generated)
 target_link_libraries(p31-render-common INTERFACE p31-core "-framework Cocoa" "-framework QuartzCore")

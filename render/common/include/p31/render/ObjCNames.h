@@ -32,6 +32,8 @@
 #define P31SpectrogramPlotView    P31_OBJC_CLASS(P31SpectrogramPlotView)
 #define P31SpectrogramOverlayView P31_OBJC_CLASS(P31SpectrogramOverlayView)
 #define P31SettingsPanel      P31_OBJC_CLASS(P31SettingsPanel)
+#define P31SettingsWindow     P31_OBJC_CLASS(P31SettingsWindow)
+#define P31SettingsWindowContent P31_OBJC_CLASS(P31SettingsWindowContent)
 #define P31FlippedView        P31_OBJC_CLASS(P31FlippedView)
 #define P31MenuItem           P31_OBJC_CLASS(P31MenuItem)
 #define P31EditorRootView     P31_OBJC_CLASS(P31EditorRootView)

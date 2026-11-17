@@ -203,7 +203,7 @@ private:
         return p31::ui::makePresetMenu(
             p31::editor::presetSource<SpectrogramSettings>(
                 _module, factoryPresets(), [editor](const SpectrogramSettings& s) { editor->applyPreset(s); }),
-            _root);
+            _root.dialogAnchor);
     }
 
     Form buildForm();

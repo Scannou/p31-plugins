@@ -76,6 +76,8 @@ namespace {
 @implementation P31EditorRootView {
     NSView *_content;
     P31SettingsPanel *_panel;
+    P31SettingsWindow *_settingsWindow;   // nil until the settings first open
+    BOOL _ownsSettingsWindow;
     NSView *_toolbar;
     NSVisualEffectView *_freezeChip;
     NSVisualEffectView *_settingsChip;
@@ -121,13 +123,11 @@ namespace {
     [_toolbar addSubview:_settingsChip];
     [self addSubview:_toolbar];
 
-    _panel = [[P31SettingsPanel alloc] initWithFrame:self.bounds title:title];
-    _panel.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    _panel = [[P31SettingsPanel alloc] initWithFrame:NSZeroRect title:title];
     _panel.hidden = YES;
     __weak P31EditorRootView *weakSelf = self;
     _panel.onDone = ^{ [weakSelf hideSettings]; };
     _panel.onLogoClick = ^{ [weakSelf showAbout]; };
-    [self addSubview:_panel];
 
     _grip = [[P31ResizeGrip alloc] initWithFrame:NSZeroRect];
     _grip.toolTip = @"Drag to resize";
@@ -192,7 +192,7 @@ namespace {
 
 - (NSView *)content { return _content; }
 - (P31SettingsPanel *)settingsPanel { return _panel; }
-- (BOOL)settingsVisible { return !_panel.hidden; }
+- (BOOL)settingsVisible { return [_settingsWindow isShowingPage:_panel]; }
 
 - (void)setPresetMenu:(NSMenu * (^)(void))presetMenu {
     _presetMenu = [presetMenu copy];
@@ -248,7 +248,7 @@ namespace {
     _frozenShown = frozen;
     _freezeButton.contentTintColor = frozen ? NSColor.controlAccentColor : NSColor.secondaryLabelColor;
     _freezeButton.toolTip = frozen ? @"Frozen: click to resume" : @"Freeze the display";
-    const CGFloat alpha = (_hovering || frozen) && _panel.hidden ? 1.0 : 0.0;
+    const CGFloat alpha = _hovering || frozen ? 1.0 : 0.0;
     if (_toolbar.alphaValue == alpha) return;
     if (!animated) {
         _toolbar.alphaValue = alpha;
@@ -271,27 +271,67 @@ namespace {
     [self showSettings];
 }
 
-- (void)showSettings {
-    if (self.makeForm) [_panel setForm:self.makeForm()];
-    NSView *settingsHost = self.settingsHost;
-    NSView *host = settingsHost ? settingsHost : self;
-    if (_panel.superview != host) [host addSubview:_panel];
-    _panel.frame = host.bounds;
-    // On another view the panel no longer inherits this editor's appearance.
-    _panel.appearance = host == self ? nil : self.appearance;
-    _panel.hidden = NO;
-    [self updateToolbar:NO];
-}
+#pragma mark - Settings window
 
-// Removed for good: a panel shown on another view goes too.
-- (void)viewWillMoveToSuperview:(NSView *)newSuperview {
-    [super viewWillMoveToSuperview:newSuperview];
-    if (newSuperview == nil && _panel.superview != self) [_panel removeFromSuperview];
+- (void)showSettings {
+    [[self settingsWindow] showPage:_panel besideWindow:self.window];
 }
 
 - (void)hideSettings {
-    _panel.hidden = YES;
-    [self updateToolbar:NO];
+    if (self.settingsVisible) [_settingsWindow close];
+}
+
+// The window of the editor's own, made the first time the settings open.
+- (P31SettingsWindow *)settingsWindow {
+    if (!_settingsWindow) {
+        NSString *title = [NSString stringWithFormat:@"P31 %@ Settings", _title];
+        _settingsWindow = [[P31SettingsWindow alloc] initWithTitle:title];
+        _ownsSettingsWindow = YES;
+        [self addPageTo:_settingsWindow order:0];
+    }
+    return _settingsWindow;
+}
+
+- (void)useSettingsWindow:(P31SettingsWindow *)window order:(NSInteger)order {
+    [self dropSettingsWindow];
+    _settingsWindow = window;
+    _ownsSettingsWindow = NO;
+    [self addPageTo:window order:order];
+}
+
+- (void)addPageTo:(P31SettingsWindow *)window order:(NSInteger)order {
+    __weak P31EditorRootView *weakSelf = self;
+    [window addPage:_panel tabTitle:_title order:order prepare:^{ [weakSelf prepareSettings]; }];
+}
+
+// The page, built afresh each time it is shown.
+- (void)prepareSettings {
+    if (self.makeForm) [_panel setForm:self.makeForm()];
+    // In its own window the page no longer inherits this editor's appearance.
+    _panel.appearance = self.appearance;
+}
+
+- (void)dropSettingsWindow {
+    if (!_settingsWindow) return;
+    [_settingsWindow removePage:_panel];
+    if (_ownsSettingsWindow) [_settingsWindow close];
+    _settingsWindow = nil;
+}
+
+- (NSView *)dialogAnchor {
+    return _settingsWindow.keyWindow && !_panel.hidden ? _panel : self;
+}
+
+// Removed for good (the host closed the editor): the settings go too.
+- (void)viewWillMoveToSuperview:(NSView *)newSuperview {
+    [super viewWillMoveToSuperview:newSuperview];
+    if (newSuperview == nil) [self dropSettingsWindow];
+}
+
+// The host hid the editor: its settings window goes away with it.
+- (void)viewDidHide {
+    [super viewDidHide];
+    [self hideSettings];
 }
 
 - (void)refreshFreeze {
@@ -308,7 +348,8 @@ namespace {
         case p31::AppearanceDark: self.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua]; break;
         default: self.appearance = nil; break;
     }
-    if (_panel.superview != self) _panel.appearance = self.appearance;
+    _panel.appearance = self.appearance;
+    if (self.settingsVisible) _settingsWindow.appearance = self.appearance;
 }
 
 #pragma mark - Brand
@@ -334,7 +375,7 @@ namespace {
     info.url = _url.UTF8String;
     info.lightColor = _brandLight;
     info.darkColor = _brandDark;
-    p31::ui::showAbout(info, self);
+    p31::ui::showAbout(info, self.dialogAnchor);
 }
 
 #pragma mark - Context menu

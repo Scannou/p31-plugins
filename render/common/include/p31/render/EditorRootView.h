@@ -4,9 +4,9 @@
 //
 //  The editor's top-level view: the analyzer view filling it, a small
 //  toolbar (Freeze, Settings) that shows while the mouse is over the editor
-//  or while frozen, the settings panel laid over everything, a right-click
-//  menu with the same actions plus presets, and a resize grip in the
-//  bottom-right corner. Objective-C++ only.
+//  or while frozen, a right-click menu with the same actions plus presets,
+//  and a resize grip in the bottom-right corner. The settings open in a
+//  window of their own (SettingsWindow.h). Objective-C++ only.
 //
 
 #pragma once
@@ -14,6 +14,7 @@
 #import <Cocoa/Cocoa.h>
 
 #import "p31/render/SettingsPanel.h"
+#import "p31/render/SettingsWindow.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -58,15 +59,20 @@ constexpr CGFloat kResizeGripSize = 16.0;
 @property (nonatomic, copy, nullable) NSArray<NSView *> *toolbarAccessories;
 // Adds items to the end of the right-click menu.
 @property (nonatomic, copy, nullable) void (^extendMenu)(NSMenu *menu);
-// The settings panel covers this view instead of the editor: a panel of P31
-// Suite shows its settings over the whole window.
-@property (nonatomic, weak, nullable) NSView *settingsHost;
+// Open the settings in `window`, under a tab sorted by `order`, instead of
+// a window of the editor's own: P31 Suite's panels share one.
+- (void)useSettingsWindow:(P31SettingsWindow *)window order:(NSInteger)order;
+// Where dialogs (presets, About) should appear: the settings while their
+// window has the focus, else the editor.
+@property (nonatomic, readonly) NSView *dialogAnchor;
 // Freeze state and toggle.
 @property (nonatomic, copy, nullable) BOOL (^isFrozen)(void);
 @property (nonatomic, copy, nullable) void (^toggleFreeze)(void);
 
+// Bring the settings window up on this editor's page, or close it.
 - (void)showSettings;
 - (void)hideSettings;
+// The settings window is on screen with this editor's page.
 @property (nonatomic, readonly) BOOL settingsVisible;
 
 // Re-read the freeze state (cheap; call every frame).
