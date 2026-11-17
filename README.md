@@ -96,8 +96,9 @@ signed yet, and each release's notes explain how to open one.
 ## Using the plugins
 
 - **Settings**: hover over the editor and click the sliders icon (top right), or
-  right-click anywhere. Everything is saved with the project. Right-click →
-  About shows the version and licenses.
+  right-click anywhere. They open in a window of their own beside the editor;
+  in P31 Suite one window has a tab per shown panel. Everything is saved with
+  the project. Right-click → About shows the version and licenses.
 - **Presets**: the Presets button on the settings page (or the right-click
   menu) has factory presets, your own presets (saved in
   `~/Library/Audio/Presets/P31/<plugin>/`) and "Use Current Settings for New
@@ -189,11 +190,12 @@ and saves the editor as PNG. Signals: `mix`, `mono`, `left`, `wide`, `antiphase`
 `file:<path>` with raw stereo float32 audio at 48 kHz
 (`ffmpeg -i song.wav -f f32le -ac 2 -ar 48000 song.f32`). Optional width and
 height follow the seconds; a trailing `settings [scroll]` opens the settings
-page.
+window and saves that instead of the editor.
 
 | Variable | Effect |
 |---|---|
 | `P31_STATE=<file>` | load settings text (`key=value` lines) as the plugin state first |
+| `P31_TAB=<title>` | with `settings`: pick that tab of the settings window (P31 Suite) |
 | `P31_SELECT=<item>` | pick that item in a settings pop-up |
 | `P31_HOVER=x,y` | put the mouse at that fraction of the editor (hover readout; held down on the spectrogram) |
 | `P31_DRAG=dx,dy` | drag the resize grip, with the host resizing like a DAW |

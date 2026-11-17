@@ -7,11 +7,12 @@
 //  time, and after a while saves the editor's pixels to a PNG.
 //
 //  p31-snapshot <plugin.clap> <out.png> [signal] [seconds] [width] [height] [settings [scroll]]
-//  "settings" opens the editor's settings panel, scrolled down by `scroll` points.
+//  "settings" opens the editor's settings window, scrolled down by `scroll`
+//  points, and saves that window instead of the editor.
 //  With P31_STATE=<file>, the file's settings text is loaded as the plugin's
-//  state before the editor opens. With "settings", P31_SELECT=<item title>
-//  picks that item in the first settings pop-up that has it, as a click
-//  would. P31_DUMP_STATE=1 prints the saved state's text at the end.
+//  state before the editor opens. With "settings", P31_TAB=<title> picks that
+//  tab of the window (P31 Suite), and P31_SELECT=<item title> picks that item
+//  in the first settings pop-up that has it, as a click would. P31_DUMP_STATE=1 prints the saved state's text at the end.
 //  P31_DRAG=dx,dy drags the editor's resize grip by that many points (right,
 //  down); the host side resizes the window like a DAW does. P31_ABOUT=1 opens
 //  the About dialog and saves that instead of the editor. P31_HOVER=x,y puts
@@ -382,19 +383,39 @@ int main(int argc, const char* argv[]) {
         gui->set_parent(plugin, &cw);
         gui->show(plugin);
         [window orderFrontRegardless];
+        NSWindow* settingsWindow = nil;
         if (openSettings) {
             NSView* root = findResponder(window.contentView, @selector(showSettings));
-            if (!root) { std::fprintf(stderr, "no settings panel\n"); return 1; }
+            if (!root) { std::fprintf(stderr, "no settings\n"); return 1; }
             [root performSelector:@selector(showSettings)];
-            [root layoutSubtreeIfNeeded];
+            for (NSWindow* w in NSApp.windows) {
+                if ([NSStringFromClass([w class]) hasPrefix:@"P31SettingsWindow"]) settingsWindow = w;
+            }
+            if (!settingsWindow) { std::fprintf(stderr, "no settings window\n"); return 1; }
+            // This tool's app never becomes active, and the window hides
+            // while its app is not.
+            settingsWindow.hidesOnDeactivate = NO;
+            [settingsWindow orderFrontRegardless];
+            NSView* page = settingsWindow.contentView;
+            if (const char* tab = std::getenv("P31_TAB")) {
+                NSSegmentedControl* tabs = (NSSegmentedControl*)findViewOfClass(page, @"NSSegmentedControl");
+                NSInteger found = -1;
+                for (NSInteger i = 0; tabs && i < tabs.segmentCount; ++i) {
+                    if ([[tabs labelForSegment:i] isEqualToString:@(tab)]) found = i;
+                }
+                if (found < 0) { std::fprintf(stderr, "no tab \"%s\"\n", tab); return 1; }
+                tabs.selectedSegment = found;
+                [tabs sendAction:tabs.action to:tabs.target];
+            }
+            [page layoutSubtreeIfNeeded];
             if (const char* select = std::getenv("P31_SELECT")) {
-                NSPopUpButton* popup = findPopupWithItem(root, @(select));
+                NSPopUpButton* popup = findPopupWithItem(page, @(select));
                 if (!popup) { std::fprintf(stderr, "no pop-up with \"%s\"\n", select); return 1; }
                 [popup selectItemWithTitle:@(select)];
                 [popup sendAction:popup.action to:popup.target];
             }
             if (scroll > 0) {
-                NSView* clip = findResponder(root, @selector(documentVisibleRect));
+                NSView* clip = findResponder(page, @selector(documentVisibleRect));
                 if (auto* sv = (NSScrollView*)clip) [sv.contentView scrollToPoint:NSMakePoint(0, scroll)];
             }
         }
@@ -557,6 +578,15 @@ int main(int argc, const char* argv[]) {
             NSBitmapImageRep* rep = sheet ? [sheet bitmapImageRepForCachingDisplayInRect:sheet.bounds] : nil;
             if (rep) {
                 [sheet cacheDisplayInRect:sheet.bounds toBitmapImageRep:rep];
+                ok = [[rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}] writeToFile:outPath
+                                                                                             atomically:YES];
+            }
+        } else if (settingsWindow) {
+            // Drawn as the window draws it: the controls are not all in layers.
+            NSView* content = settingsWindow.contentView;
+            NSBitmapImageRep* rep = [content bitmapImageRepForCachingDisplayInRect:content.bounds];
+            if (rep) {
+                [content cacheDisplayInRect:content.bounds toBitmapImageRep:rep];
                 ok = [[rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}] writeToFile:outPath
                                                                                              atomically:YES];
             }
