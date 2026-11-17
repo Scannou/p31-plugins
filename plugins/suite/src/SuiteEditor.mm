@@ -44,6 +44,8 @@ class SuiteEditor final : public p31::Editor {
 public:
     SuiteEditor(SuitePlugin& plugin, uint32_t width, uint32_t height) : _plugin(plugin) {
         _view = [[P31SuiteView alloc] initWithFrame:NSMakeRect(0, 0, width, height)];
+        // One settings window for every panel, a tab each.
+        _settings = [[P31SettingsWindow alloc] initWithTitle:@"P31 Suite Settings"];
 
         SuiteEditor* editor = this;
         _view.onLayoutEdit = ^(const Layout& layout) {
@@ -61,6 +63,8 @@ public:
         // An edit still waiting for its turn finds nobody.
         _view.onLayoutEdit = nil;
         for (auto& panel : _panels) panel.reset();
+        [_settings close];
+        _settings = nil;
         [_view removeFromSuperview];
         _view = nil;
     }
@@ -118,10 +122,11 @@ private:
             _panels[panel] = makePanel(panel, points(pane.bounds.size.width), points(pane.bounds.size.height));
 
             // In a pane, the editor has no grip of its own, shows its
-            // settings over the whole window and can be moved and hidden.
+            // settings in the suite's settings window and can be moved and
+            // hidden. Tabs are in the order of the Panels menu.
             P31EditorRootView* root = (__bridge P31EditorRootView*)_panels[panel]->view();
             root.requestResize = nil;
-            root.settingsHost = _view;
+            [root useSettingsWindow:_settings order:panel];
             root.toolbarAccessories = [_view toolbarItemsForPanel:panel];
             // After the items the panel adds itself.
             void (^own)(NSMenu*) = root.extendMenu;
@@ -177,6 +182,7 @@ private:
 
     SuitePlugin& _plugin;
     P31SuiteView* _view = nil;
+    P31SettingsWindow* _settings = nil;
     std::array<std::unique_ptr<p31::Editor>, kPanelCount> _panels;
 };
 
