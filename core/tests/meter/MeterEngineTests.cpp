@@ -9,6 +9,7 @@
 #include <p31/meter/MeterEngine.h>
 
 #include <cmath>
+#include <limits>
 #include <vector>
 
 using namespace p31::meter;
@@ -211,6 +212,31 @@ void testSampleRateChange() {
     EXPECT(std::fabs(e.snapshot().ch[0].rmsDb + 12.04) < 0.1, "RMS valid after the switch");
 }
 
+void testNonFinite() {
+    g_context = "non-finite samples";
+    MeterEngine e;
+    e.configure(EngineSettings());
+    run(e, 0.5, 0.5, 0.5);
+    std::vector<float> bad(800 * 2, 0.25f);
+    bad[100] = std::numeric_limits<float>::quiet_NaN();
+    bad[301] = std::numeric_limits<float>::infinity();
+    bad[502] = -std::numeric_limits<float>::infinity();
+    e.process(bad.data(), 800, kSR, 2);
+    e.advance(kFrame);
+    // An inverted pair afterwards: every reading follows the audio again.
+    run(e, 3.5, 0.5, 0.5, 1000.0, kPi);
+    const Snapshot &snap = e.snapshot();
+    EXPECT(std::fabs(snap.ch[0].peakDb + 6.02) < 0.1, "peak");
+    EXPECT(std::fabs(snap.ch[1].maxDb + 6.02) < 0.1, "max");
+    EXPECT(!snap.ch[0].clip && !snap.ch[1].clip, "no clip");
+    EXPECT(std::fabs(snap.ch[0].rmsDb + 9.03) < 0.1, "RMS");
+    EXPECT(std::isfinite(snap.ch[0].needleDb) && snap.ch[0].needleDb > 0, "needle");
+    EXPECT(snap.correlation < -0.99f, "correlation");
+    EXPECT(std::fabs(snap.balanceDb) < 0.1, "balance");
+    EXPECT(std::isfinite(snap.momentary) && std::isfinite(snap.integrated), "loudness");
+    EXPECT(std::fabs(snap.truePeakMaxDb + 6.02f) < 0.5f, "measurement true peak");
+}
+
 } // namespace
 
 TEST_CASE("Meter engine: levels") { testLevels(); }
@@ -219,3 +245,4 @@ TEST_CASE("Meter engine: clip and true peak") { testClipAndTruePeak(); }
 TEST_CASE("Meter engine: needle") { testNeedle(); }
 TEST_CASE("Meter engine: loudness and stereo") { testLoudnessAndStereo(); }
 TEST_CASE("Meter engine: sample rate change") { testSampleRateChange(); }
+TEST_CASE("Meter engine: non-finite samples") { testNonFinite(); }
