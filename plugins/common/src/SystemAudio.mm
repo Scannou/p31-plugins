@@ -25,6 +25,9 @@ namespace {
     // After these many seconds the log says how much audio arrived: a silent
     // stream usually means the permission to record system audio is missing.
     constexpr int64_t kReportSeconds[] = {3, 15};
+    // IO buffer asked of the aggregate device. Audio reaches the views once
+    // per buffer, so a short one keeps them close to what is heard.
+    constexpr UInt32 kIOBufferFrames = 128;
 
     os_log_t logger() {
         static os_log_t log = os_log_create("com.scannou.p31", "system-audio");
@@ -63,6 +66,10 @@ struct SystemAudioCapture::Impl {
     std::atomic<uint64_t> frames{0};
     std::atomic<float> peak{0.0f};
     std::atomic<uint32_t> inputBuffers{0};
+    // How old the input was when the IO proc ran (now - input time), in
+    // microseconds: the last value and the largest.
+    std::atomic<uint32_t> inputAge{0};
+    std::atomic<uint32_t> inputAgeMax{0};
     // Bumped by every start and stop, so a late report or device-change
     // notification can tell that its stream is gone.
     uint64_t generation = 0;
@@ -73,9 +80,20 @@ struct SystemAudioCapture::Impl {
     void close();
     void deliver(const AudioBufferList* input);
 
-    static OSStatus ioCallback(AudioObjectID, const AudioTimeStamp*, const AudioBufferList* input,
-                               const AudioTimeStamp*, AudioBufferList*, const AudioTimeStamp*, void* client) {
-        if (input != nullptr) static_cast<Impl*>(client)->deliver(input);
+    static OSStatus ioCallback(AudioObjectID, const AudioTimeStamp* now, const AudioBufferList* input,
+                               const AudioTimeStamp* inputTime, AudioBufferList*, const AudioTimeStamp*,
+                               void* client) {
+        Impl* impl = static_cast<Impl*>(client);
+        if (now != nullptr && inputTime != nullptr && (now->mFlags & kAudioTimeStampHostTimeValid) &&
+            (inputTime->mFlags & kAudioTimeStampHostTimeValid) && now->mHostTime >= inputTime->mHostTime) {
+            const auto age = static_cast<uint32_t>(
+                std::min<UInt64>(AudioConvertHostTimeToNanos(now->mHostTime - inputTime->mHostTime) / 1000,
+                                 UINT32_MAX));
+            impl->inputAge.store(age, std::memory_order_relaxed);
+            if (age > impl->inputAgeMax.load(std::memory_order_relaxed))
+                impl->inputAgeMax.store(age, std::memory_order_relaxed);
+        }
+        if (input != nullptr) impl->deliver(input);
         return noErr;
     }
 };
@@ -191,6 +209,28 @@ bool SystemAudioCapture::Impl::open() {
         frames.store(0);
         peak.store(0.0f);
         inputBuffers.store(0);
+        inputAge.store(0);
+        inputAgeMax.store(0);
+
+        const AudioObjectPropertyAddress bufferAddress{kAudioDevicePropertyBufferFrameSize,
+                                                       kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain};
+        UInt32 bufferFrames = kIOBufferFrames;
+        if (AudioObjectSetPropertyData(device, &bufferAddress, 0, nullptr, sizeof(bufferFrames), &bufferFrames) !=
+            noErr)
+            os_log_error(logger(), "cannot set the IO buffer to %u frames", static_cast<unsigned>(kIOBufferFrames));
+        bufferFrames = 0;
+        getProperty(device, kAudioDevicePropertyBufferFrameSize, bufferFrames);
+        UInt32 latency = 0, safety = 0;
+        const AudioObjectPropertyAddress latencyAddress{kAudioDevicePropertyLatency, kAudioObjectPropertyScopeInput,
+                                                        kAudioObjectPropertyElementMain};
+        const AudioObjectPropertyAddress safetyAddress{kAudioDevicePropertySafetyOffset,
+                                                       kAudioObjectPropertyScopeInput, kAudioObjectPropertyElementMain};
+        UInt32 size = sizeof(latency);
+        AudioObjectGetPropertyData(device, &latencyAddress, 0, nullptr, &size, &latency);
+        size = sizeof(safety);
+        AudioObjectGetPropertyData(device, &safetyAddress, 0, nullptr, &size, &safety);
+        os_log(logger(), "IO buffer %u frames, input latency %u frames, safety offset %u frames",
+               static_cast<unsigned>(bufferFrames), static_cast<unsigned>(latency), static_cast<unsigned>(safety));
 
         status = AudioDeviceCreateIOProcID(device, &Impl::ioCallback, this, &ioProc);
         if (status == noErr) status = AudioDeviceStart(device, ioProc);
@@ -263,9 +303,10 @@ bool SystemAudioCapture::start() {
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, seconds * static_cast<int64_t>(NSEC_PER_SEC)),
                        dispatch_get_main_queue(), ^{
             if (!alive->load() || impl->generation != generation) return;
-            os_log(logger(), "%llu frames in the first %lld s, peak %.5f, %u input buffers", impl->frames.load(),
-                   static_cast<long long>(seconds), static_cast<double>(impl->peak.load()),
-                   static_cast<unsigned>(impl->inputBuffers.load()));
+            os_log(logger(), "%llu frames in the first %lld s, peak %.5f, %u input buffers, input age %.1f ms (max %.1f)",
+                   impl->frames.load(), static_cast<long long>(seconds), static_cast<double>(impl->peak.load()),
+                   static_cast<unsigned>(impl->inputBuffers.load()), impl->inputAge.load() / 1000.0,
+                   impl->inputAgeMax.load() / 1000.0);
         });
     }
     return true;
