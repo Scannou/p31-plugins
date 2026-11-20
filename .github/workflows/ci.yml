@@ -41,7 +41,7 @@ jobs:
       - name: Submodules and clap-validator
         run: scripts/bootstrap.sh
 
-      - name: Tag matches the project version
+      - name: Tag matches the project version and has a changelog entry
         if: env.RELEASE == 'true'
         run: |
           version=$(sed -n 's/^project(p31-plugins VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
@@ -49,6 +49,7 @@ jobs:
             echo "tag $GITHUB_REF_NAME does not match project version $version" >&2
             exit 1
           fi
+          scripts/release-notes.sh "$GITHUB_REF_NAME" summary > /dev/null
 
       - name: Build (Release, universal)
         run: |
@@ -135,6 +136,10 @@ jobs:
     permissions:
       contents: write
     steps:
+      # The whole history and its tags, for the commits since the previous release.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/download-artifact@v4
         with:
           name: P31-Plugins
@@ -144,11 +149,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SIGNED: ${{ needs.build.outputs.signed }}
         run: |
+          # The CHANGELOG.md section, how to install, then the commits.
           notes="$RUNNER_TEMP/notes.md"
+          {
+            printf '## Changes\n\n'
+            scripts/release-notes.sh "$GITHUB_REF_NAME" summary
+            printf '\n## Install\n\n'
+          } > "$notes"
           if [[ "$SIGNED" == true ]]; then
-            echo "Signed and notarized installer for macOS 12 or later (Apple silicon and Intel)." > "$notes"
+            echo "Signed and notarized installer for macOS 12 or later (Apple silicon and Intel)." >> "$notes"
           else
-            cat > "$notes" <<'EOF'
+            cat >> "$notes" <<'EOF'
           **Unsigned build.** macOS will not open the installer directly. After downloading:
 
           - macOS 15 or later: double-click the .pkg, then open System Settings → Privacy & Security and click *Open Anyway*.
@@ -158,5 +169,6 @@ jobs:
           The installed plugins then load normally in your DAW.
           EOF
           fi
+          { echo; scripts/release-notes.sh "$GITHUB_REF_NAME" commits; } >> "$notes"
           gh release create "$GITHUB_REF_NAME" dist/*.pkg --repo "$GITHUB_REPOSITORY" \
-            --title "P31 Plugins ${GITHUB_REF_NAME#v}" --notes-file "$notes" --generate-notes
+            --title "P31 Plugins ${GITHUB_REF_NAME#v}" --notes-file "$notes"

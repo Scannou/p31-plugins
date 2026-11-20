@@ -251,11 +251,17 @@ The package is signed, notarized and stapled.
 CI (`.github/workflows/ci.yml`) builds, tests, validates and packages every push
 and pull request; the unsigned package is attached to each run. Pushing a tag
 `v<version>` (matching `project(... VERSION ...)` in CMakeLists.txt) also
-publishes a GitHub release:
+publishes a GitHub release. Before tagging, rename `## [Unreleased]` in
+[CHANGELOG.md](CHANGELOG.md) to `## [<version>] - <date>`, open a new empty
+`## [Unreleased]` above it and update the compare links at the bottom; CI
+refuses a tag without that section. Then:
 
 ```sh
 git tag v0.1.7 && git push origin v0.1.7
 ```
+
+The release notes are that section, the install notes and every commit since
+the previous tag; `scripts/release-notes.sh v<version>` prints them.
 
 Without signing secrets the release carries the unsigned package, and its notes
 explain how to open it past Gatekeeper. With these repository settings (they
