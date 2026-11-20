@@ -241,20 +241,28 @@ TEST_CASE("a reader only sees frames written after it was created") {
 // The writer runs in its own thread with random block sizes; the reader
 // checks that everything it gets is an intact, gap-accounted ramp. The ring
 // is small so the reader regularly falls behind and overwrites happen during
-// copies. Run under ThreadSanitizer via the `tsan` preset.
+// copies. The writer goes on past kTotalFrames until the reader has made
+// kMinChecks of each kind, so a slow or busy machine (a CI runner) only makes
+// the test longer; kMaxTime bounds it if the reader never gets there.
+// Run under ThreadSanitizer via the `tsan` preset.
 TEST_CASE("concurrent writer and reader never see torn or misplaced frames") {
     AudioRing ring(2, 1024);
     AudioRingReader reader(ring);
     std::atomic<bool> done{false};
+    std::atomic<bool> enoughChecks{false};
     constexpr uint64_t kTotalFrames = 4'000'000;
+    constexpr auto kMaxTime = std::chrono::seconds(10);
+    constexpr uint64_t kMinChecks = 100;
 
     std::thread writerThread([&] {
+        const auto deadline = std::chrono::steady_clock::now() + kMaxTime;
         RampWriter writer;
         writer.left.reserve(512);
         writer.right.reserve(512);
         std::mt19937 rng(1);
         std::uniform_int_distribution<uint32_t> block(1, 512);
-        while (writer.pos < kTotalFrames) {
+        while (writer.pos < kTotalFrames ||
+               (!enoughChecks.load(std::memory_order_acquire) && std::chrono::steady_clock::now() < deadline)) {
             writer.write(ring, block(rng));
             if (rng() % 64 == 0) std::this_thread::yield();
         }
@@ -286,6 +294,7 @@ TEST_CASE("concurrent writer and reader never see torn or misplaced frames") {
             if (!isRamp(tail, got, first)) ok = false;
             ++latestChecks;
         }
+        if (reads >= kMinChecks && latestChecks >= kMinChecks) enoughChecks.store(true, std::memory_order_release);
 
         if (finished) break;
         if (rng() % 16 == 0) std::this_thread::sleep_for(std::chrono::microseconds(rng() % 200));
@@ -300,7 +309,7 @@ TEST_CASE("concurrent writer and reader never see torn or misplaced frames") {
 
     CHECK(ok);
     CHECK(expectedNext == ring.writePosition());
-    CHECK(reads > 100);
-    CHECK(latestChecks > 100);
+    CHECK(reads >= kMinChecks);
+    CHECK(latestChecks >= kMinChecks);
     MESSAGE("reads: " << reads << ", frames skipped: " << skippedTotal);
 }
